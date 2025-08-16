@@ -1,85 +1,171 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import sys
+from google.oauth2.service_account import Credentials
+import os
+from datetime import datetime
+
+# Configuração da página (fora da função main para evitar reexecução)
+st.set_page_config(
+    page_title="Carteira de Clientes Normaq",
+    page_icon="🔍",
+    layout="wide",
+)
+
+# CSS personalizado
+st.markdown("""
+<style>
+.stApp { background-color: #FCAF26; }
+.client-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin: 10px 0;
+}
+.search-header {
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+.footer {
+    margin-top: 30px;
+    text-align: center;
+    color: #7f8c8d;
+}
+</style>
+""", unsafe_allow_html=True)
+
+def get_google_credentials():
+    """Obtém credenciais do Google Sheets de forma segura"""
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    
+    # 1. Tentar usar secrets.toml (Streamlit Sharing)
+    if 'gcp_service_account' in st.secrets:
+        return Credentials.from_service_account_info(
+            st.secrets['gcp_service_account'],
+            scopes=scopes
+        )
+    
+    # 2. Tentar locais alternativos para credentials.json
+    creds_paths = [
+        "credentials.json",
+        os.path.join(os.path.dirname(__file__), "credentials.json"),
+        os.path.expanduser("~/credentials.json")
+    ]
+    
+    for path in creds_paths:
+        if os.path.exists(path):
+            return Credentials.from_service_account_file(path, scopes=scopes)
+    
+    st.error("""
+    🔐 Credenciais não encontradas!
+    - Para desenvolvimento local: coloque credentials.json na pasta do projeto
+    - Para produção: configure secrets.toml
+    """)
+    st.stop()
+
+def load_sheet_data(client, spreadsheet_name):
+    """Carrega dados da planilha com tratamento de erros"""
+    try:
+        sheet = client.open(spreadsheet_name).sheet1
+        return pd.DataFrame(sheet.get_all_records()).dropna(how='all')
+    except gspread.exceptions.SpreadsheetNotFound:
+        st.error(f"📂 Planilha '{spreadsheet_name}' não encontrada!")
+        st.error("Verifique o nome no Google Sheets")
+        st.stop()
+    except Exception as e:
+        st.error(f"⛔ Erro ao carregar dados: {str(e)}")
+        st.stop()
+
+def display_client_card(row):
+    """Exibe o cartão de informações do cliente"""
+    with st.container():
+        st.markdown(f"""
+        <div class="client-card">
+            <p><strong>👤 Cliente:</strong> {row['CLIENTES']}</p>
+            <p><strong>🛠 Consultor:</strong> {row['NOVO CONSULTOR']}</p>
+            <p><strong>🏢 Revenda:</strong> {row['REVENDA']}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 def main():
-    # Configuração da página
-    st.set_page_config(
-        page_title="Carteira de Clientes Normaq",
-        page_icon="🔍",
-        layout="wide",
-    )
-
-    # CSS personalizado
-    st.markdown("""
-    <style>
-    .stApp { background-color: #FCAF26; }
-    .client-card {
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        margin-top: 20px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
-
-    # Carregar dados
+    
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-        client = gspread.authorize(creds)
+        # Autenticação
+        with st.spinner("Conectando ao Google Sheets..."):
+            creds = get_google_credentials()
+            client = gspread.authorize(creds)
         
-        sheet = client.open("Carteira de Clientes_v02.xlsx").sheet1
-        dados = sheet.get_all_records()
-        df = pd.DataFrame(dados).dropna(how='all')
+        # Carregar dados (com cache de 1 hora)
+        @st.cache_data(ttl=3600, show_spinner="Carregando dados da planilha...")
+        def get_data():
+            return load_sheet_data(client, "Carteira de Clientes_v02.xlsx")
+            
+        df = get_data()
         
-        # Verificar colunas necessárias
+        # Validação das colunas
         required_cols = ['CLIENTES', 'NOVO CONSULTOR', 'REVENDA']
         if not all(col in df.columns for col in required_cols):
-            st.error(f"Planilha não contém todas as colunas necessárias: {required_cols}")
+            st.error(f"⚠️ A planilha está faltando colunas necessárias: {', '.join(required_cols)}")
             st.stop()
-            
-        # Interface de busca
-        opcao_busca = st.radio("Buscar por:", ("Cliente", "Consultor", "Revenda"), horizontal=True)
         
-        if opcao_busca == "Cliente":
-            cliente = st.selectbox("Selecione o cliente:", sorted(df["CLIENTES"].astype(str).unique()))
-            resultado = df[df["CLIENTES"].astype(str) == cliente]
-        elif opcao_busca == "Consultor":
-            consultor = st.selectbox("Selecione o consultor:", sorted(df["NOVO CONSULTOR"].astype(str).unique()))
-            resultado = df[df["NOVO CONSULTOR"].astype(str) == consultor]
-        else:
-            revenda = st.selectbox("Selecione a revenda:", sorted(df["REVENDA"].astype(str).unique()))
-            resultado = df[df["REVENDA"].astype(str) == revenda]
-
-        if st.button("Buscar"):
-            if not resultado.empty:
-                st.markdown("### Resultado da Busca")
-                for _, row in resultado.iterrows():
-                    st.markdown(f"""
-                    <div class="client-card">
-                        <p><strong>Cliente:</strong> {row['CLIENTES']}</p>
-                        <p><strong>Consultor:</strong> {row['NOVO CONSULTOR']}</p>
-                        <p><strong>Revenda:</strong> {row['REVENDA']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+        # Interface de busca
+        st.markdown("### 🔎 Busca", unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            search_type = st.radio(
+                "Buscar por:",
+                ("Cliente", "Consultor", "Revenda"),
+                horizontal=True
+            )
+            
+            if search_type == "Cliente":
+                filter_value = st.selectbox(
+                    "Selecione o cliente:",
+                    sorted(df["CLIENTES"].astype(str).unique()),
+                    key="client_select"
+                )
+                results = df[df["CLIENTES"].astype(str) == filter_value]
+            elif search_type == "Consultor":
+                filter_value = st.selectbox(
+                    "Selecione o consultor:",
+                    sorted(df["NOVO CONSULTOR"].astype(str).unique()),
+                    key="consultant_select"
+                )
+                results = df[df["NOVO CONSULTOR"].astype(str) == filter_value]
             else:
-                st.warning("Nenhum resultado encontrado.")
+                filter_value = st.selectbox(
+                    "Selecione a revenda:",
+                    sorted(df["REVENDA"].astype(str).unique()),
+                    key="reseller_select"
+                )
+                results = df[df["REVENDA"].astype(str) == filter_value]
+        
+        if st.button("Buscar", type="primary", use_container_width=True):
+            if not results.empty:
+                st.markdown(f"### 📋 Resultados ({len(results)} encontrados)")
+                for _, row in results.iterrows():
+                    display_client_card(row)
+            else:
+                st.warning("Nenhum resultado encontrado para esta busca.")
                 
-    except FileNotFoundError:
-        st.error("Arquivo credentials.json não encontrado!")
-    except gspread.exceptions.SpreadsheetNotFound:
-        st.error("Planilha não encontrada. Verifique o nome!")
     except Exception as e:
-        st.error(f"Erro inesperado: {str(e)}")
+        st.error(f"⛔ Ocorreu um erro inesperado: {str(e)}")
+        st.error("Consulte o console para detalhes técnicos")
 
+    # Rodapé
     st.markdown("---")
-    st.markdown("© 2024 NORMAQ JCB - Todos os direitos reservados")
+    st.markdown(f"""
+    <div class="footer">
+        © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados<br>
+        Versão: 1.0.0 | Última atualização: {datetime.now().strftime('%d/%m/%Y')}
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
