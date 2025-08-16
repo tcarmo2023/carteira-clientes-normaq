@@ -32,6 +32,15 @@ st.markdown("""
     text-align: center;
     color: #7f8c8d;
 }
+.stButton>button {
+    background-color: #2c3e50;
+    color: white;
+    font-weight: bold;
+}
+.stButton>button:hover {
+    background-color: #1a2b3c;
+    color: white;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -44,21 +53,32 @@ def get_google_credentials():
     
     # 1. Tentar usar secrets.toml (Streamlit Sharing)
     if 'gcp_service_account' in st.secrets:
-        return Credentials.from_service_account_info(
-            st.secrets['gcp_service_account'],
-            scopes=scopes
-        )
+        try:
+            return Credentials.from_service_account_info(
+                st.secrets['gcp_service_account'],
+                scopes=scopes
+            )
+        except Exception as e:
+            st.error("Erro nas credenciais do secrets.toml")
+            st.error(str(e))
+            st.stop()
     
     # 2. Tentar locais alternativos para credentials.json
     creds_paths = [
         "credentials.json",
         os.path.join(os.path.dirname(__file__), "credentials.json"),
+        "/workspaces/carteira-clientes-normaq/credentials.json",
         os.path.expanduser("~/credentials.json")
     ]
     
     for path in creds_paths:
         if os.path.exists(path):
-            return Credentials.from_service_account_file(path, scopes=scopes)
+            try:
+                return Credentials.from_service_account_file(path, scopes=scopes)
+            except Exception as e:
+                st.error(f"Erro ao ler credenciais em {path}")
+                st.error(str(e))
+                continue
     
     st.error("""
     🔐 Credenciais não encontradas!
@@ -71,7 +91,17 @@ def load_sheet_data(client, spreadsheet_name):
     """Carrega dados da planilha com tratamento de erros"""
     try:
         sheet = client.open(spreadsheet_name).sheet1
-        return pd.DataFrame(sheet.get_all_records()).dropna(how='all')
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data).dropna(how='all')
+        
+        # Converter colunas de texto para string
+        text_cols = ['CLIENTES', 'NOVO CONSULTOR', 'REVENDA']
+        for col in text_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.strip()
+                
+        return df
+        
     except gspread.exceptions.SpreadsheetNotFound:
         st.error(f"📂 Planilha '{spreadsheet_name}' não encontrada!")
         st.error("Verifique o nome no Google Sheets")
@@ -121,30 +151,32 @@ def main():
             search_type = st.radio(
                 "Buscar por:",
                 ("Cliente", "Consultor", "Revenda"),
-                horizontal=True
+                horizontal=True,
+                key="search_type"
             )
             
+            # Filtros de busca
             if search_type == "Cliente":
                 filter_value = st.selectbox(
                     "Selecione o cliente:",
-                    sorted(df["CLIENTES"].astype(str).unique()),
+                    sorted(df["CLIENTES"].unique()),
                     key="client_select"
                 )
-                results = df[df["CLIENTES"].astype(str) == filter_value]
+                results = df[df["CLIENTES"] == filter_value]
             elif search_type == "Consultor":
                 filter_value = st.selectbox(
                     "Selecione o consultor:",
-                    sorted(df["NOVO CONSULTOR"].astype(str).unique()),
+                    sorted(df["NOVO CONSULTOR"].unique()),
                     key="consultant_select"
                 )
-                results = df[df["NOVO CONSULTOR"].astype(str) == filter_value]
+                results = df[df["NOVO CONSULTOR"] == filter_value]
             else:
                 filter_value = st.selectbox(
                     "Selecione a revenda:",
-                    sorted(df["REVENDA"].astype(str).unique()),
+                    sorted(df["REVENDA"].unique()),
                     key="reseller_select"
                 )
-                results = df[df["REVENDA"].astype(str) == filter_value]
+                results = df[df["REVENDA"] == filter_value]
         
         if st.button("Buscar", type="primary", use_container_width=True):
             if not results.empty:
@@ -163,7 +195,7 @@ def main():
     st.markdown(f"""
     <div class="footer">
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados<br>
-        Versão: 1.0.0 | Última atualização: {datetime.now().strftime('%d/%m/%Y')}
+        Versão: 1.1.0 | Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}
     </div>
     """, unsafe_allow_html=True)
 
