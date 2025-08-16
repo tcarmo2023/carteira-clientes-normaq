@@ -44,24 +44,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def get_google_credentials():
-    """Obtém credenciais do Google Sheets de forma segura"""
+def get_google_creds():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # 1. Tentar usar secrets.toml (Streamlit Sharing)
-    if 'gcp_service_account' in st.secrets:
-        try:
-            return Credentials.from_service_account_info(
-                st.secrets['gcp_service_account'],
-                scopes=scopes
-            )
-        except Exception as e:
-            st.error("Erro nas credenciais do secrets.toml")
-            st.error(str(e))
-            st.stop()
+    if 'gcp_service_account' not in st.secrets:
+        st.error("Credenciais não encontradas no secrets.toml")
+        st.stop()
+        
+    try:
+        return Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=scopes
+        )
+    except Exception as e:
+        st.error(f"Erro ao carregar credenciais: {str(e)}")
+        st.stop()
     
     # 2. Tentar locais alternativos para credentials.json
     creds_paths = [
