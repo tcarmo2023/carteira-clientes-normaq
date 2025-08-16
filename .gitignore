@@ -1,18 +1,68 @@
-# Arquivos sensíveis
+# =============================================
+# 1. CREDENCIAIS E CONFIGURAÇÕES SENSÍVEIS
+# =============================================
 credentials.json
 *.jsonkey
+*.pem
+*.key
+*.cert
 config.py
+secrets*.toml
+.env
+.env.local
+.env.*.local
 
-# Python
+# =============================================
+# 2. STREAMLIT (Adições específicas)
+# =============================================
+.streamlit/  # Ignora toda a pasta (inclui secrets.toml)
+__pycache__/streamlit/  # Cache específico
+
+# =============================================
+# 3. AMBIENTES VIRTUAIS E DEPENDÊNCIAS
+# =============================================
+.venv/
+venv/
+env/
+ENV/
+pythonenv/
+*.venv
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# =============================================
+# 4. ARQUIVOS DE SISTEMA/PYTHON
+# =============================================
 __pycache__/
 *.py[cod]
 *.pyc
+*.pyd
+*.pyo
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.mo
+*.pot
 
-# Environments
-.env
-.venv
-env/
-venv/
+# =============================================
+# 5. EDITORES/IDEs
+# =============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+.DS_Store
+*.code-workspace
 
-# Streamlit
-.streamlit/
+# =============================================
+# 6. LOGS E ARQUIVOS TEMPORÁRIOS
+# =============================================
+*.log
+*.tmp
+*.temp
+*.bak
+*.backup
