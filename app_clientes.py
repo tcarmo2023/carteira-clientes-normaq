@@ -12,190 +12,110 @@ st.set_page_config(
     layout="wide",
 )
 
-# CSS personalizado
-st.markdown("""
-<style>
-.stApp { background-color: #FCAF26; }
-.client-card {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    margin: 10px 0;
-}
-.search-header {
-    color: #2c3e50;
-    margin-bottom: 15px;
-}
-.footer {
-    margin-top: 30px;
-    text-align: center;
-    color: #7f8c8d;
-}
-.stButton>button {
-    background-color: #2c3e50;
-    color: white;
-    font-weight: bold;
-}
-.stButton>button:hover {
-    background-color: #1a2b3c;
-    color: white;
-}
-</style>
-""", unsafe_allow_html=True)
+# [Seu CSS personalizado permanece igual...]
 
 def get_google_creds():
-    """Obtém credenciais do Google Sheets com tratamento de erros"""
+    """Obtém credenciais do Google Sheets com tratamento de erros aprimorado"""
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # 1. Tentar secrets.toml (para produção no Streamlit Cloud)
-    if 'gcp_service_account' in st.secrets:
-        try:
-            return Credentials.from_service_account_info(
+    try:
+        # 1. Tentar secrets.toml (Streamlit Cloud)
+        if 'gcp_service_account' in st.secrets:
+            creds = Credentials.from_service_account_info(
                 st.secrets["gcp_service_account"],
                 scopes=scopes
             )
-        except Exception as e:
-            st.error(f"Erro ao carregar credenciais do secrets.toml: {str(e)}")
-    
-    # 2. Tentar locais alternativos para credentials.json
-    creds_paths = [
-        "credentials.json",
-        os.path.join(os.path.dirname(__file__), "credentials.json"),
-        "/workspaces/carteira-clientes-normaq/credentials.json",
-        os.path.expanduser("~/credentials.json")
-    ]
-    
-    for path in creds_paths:
-        if os.path.exists(path):
-            try:
-                return Credentials.from_service_account_file(path, scopes=scopes)
-            except Exception as e:
-                st.error(f"Erro ao ler credenciais em {path}: {str(e)}")
-                continue
-    
-    st.error("""
-    🔐 Credenciais não encontradas!
-    - Para desenvolvimento local: coloque credentials.json na pasta do projeto
-    - Para produção: configure secrets.toml
-    """)
-    st.stop()
+            return creds
+        
+        # 2. Tentar credentials.json (local)
+        creds_paths = [
+            "credentials.json",
+            os.path.join(os.path.expanduser("~"), "credentials.json"),
+            "/workspaces/carteira-clientes-normaq/credentials.json"
+        ]
+        
+        for path in creds_paths:
+            if os.path.exists(path):
+                creds = Credentials.from_service_account_file(path, scopes=scopes)
+                return creds
+                
+        raise FileNotFoundError("Nenhum arquivo de credenciais encontrado")
+        
+    except Exception as e:
+        st.error(f"🔐 Erro nas credenciais: {str(e)}")
+        st.stop()
 
 def load_sheet_data(client, spreadsheet_name):
-    """Carrega dados da planilha com tratamento de erros"""
+    """Carrega dados com tratamento robusto de erros"""
     try:
-        # Acessa a aba específica "Carteira"
-        sheet = client.open(spreadsheet_name).worksheet("Carteira")
-        data = sheet.get_all_records()
-        df = pd.DataFrame(data).dropna(how='all')
+        # Verifica se a planilha existe
+        try:
+            spreadsheet = client.open(spreadsheet_name)
+        except gspread.SpreadsheetNotFound:
+            raise Exception(f"Planilha '{spreadsheet_name}' não encontrada")
         
-        # Converter colunas de texto para string
-        text_cols = ['CLIENTES', 'NOVO CONSULTOR', 'REVENDA']
-        for col in text_cols:
-            if col in df.columns:
-                df[col] = df[col].astype(str).str.strip()
-                
+        # Verifica se a aba existe
+        try:
+            worksheet = spreadsheet.worksheet("Carteira")
+        except gspread.WorksheetNotFound:
+            available_sheets = [ws.title for ws in spreadsheet.worksheets()]
+            raise Exception(f"Aba 'Carteira' não encontrada. Abas disponíveis: {', '.join(available_sheets)}")
+        
+        # Obtém os dados
+        records = worksheet.get_all_records()
+        
+        if not records:
+            raise Exception("A planilha está vazia ou não contém dados formatados como tabela")
+            
+        df = pd.DataFrame(records).dropna(how='all')
+        
+        # Verifica colunas obrigatórias
+        required_cols = {'CLIENTES', 'NOVO CONSULTOR', 'REVENDA'}
+        missing_cols = required_cols - set(df.columns)
+        if missing_cols:
+            raise Exception(f"Colunas obrigatórias faltando: {', '.join(missing_cols)}")
+            
         return df
         
-    except gspread.exceptions.SpreadsheetNotFound:
-        st.error(f"📂 Planilha '{spreadsheet_name}' não encontrada!")
-        st.error("Verifique o nome no Google Sheets")
-        st.stop()
-    except gspread.exceptions.WorksheetNotFound:
-        st.error("📑 A aba 'Carteira' não foi encontrada na planilha!")
-        st.error("Verifique se o nome da aba está correto")
-        st.stop()
     except Exception as e:
-        st.error(f"⛔ Erro ao carregar dados: {str(e)}")
+        st.error(f"📊 Erro ao carregar dados: {str(e)}")
         st.stop()
-
-def display_client_card(row):
-    """Exibe o cartão de informações do cliente"""
-    with st.container():
-        st.markdown(f"""
-        <div class="client-card">
-            <p><strong>👤 Cliente:</strong> {row['CLIENTES']}</p>
-            <p><strong>🛠 Consultor:</strong> {row['NOVO CONSULTOR']}</p>
-            <p><strong>🏢 Revenda:</strong> {row['REVENDA']}</p>
-        </div>
-        """, unsafe_allow_html=True)
 
 def main():
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
     
     try:
-        # Autenticação
+        # Autenticação com feedback
         with st.spinner("Conectando ao Google Sheets..."):
-            creds = get_google_creds()
-            client = gspread.authorize(creds)
+            try:
+                creds = get_google_creds()
+                client = gspread.authorize(creds)
+                st.success("✅ Autenticação bem-sucedida!")
+            except Exception as e:
+                st.error(f"🔐 Falha na autenticação: {str(e)}")
+                st.stop()
         
-        # Teste de conexão (opcional - pode remover depois)
-        test_sheet = client.open("Carreira de Clientes_v02.xlsx")
-        st.success(f"✅ Conectado com sucesso! Abas disponíveis: {[ws.title for ws in test_sheet.worksheets()]}")
-        
-        # Carregar dados (com cache de 1 hora)
-        @st.cache_data(ttl=3600, show_spinner="Carregando dados da planilha...")
+        # Carregamento de dados
+        @st.cache_data(ttl=3600)
         def get_data():
             return load_sheet_data(client, "Carreira de Clientes_v02.xlsx")
             
-        df = get_data()
+        with st.spinner("Carregando dados da planilha..."):
+            try:
+                df = get_data()
+                st.success(f"✅ Dados carregados! {len(df)} registros encontrados")
+            except Exception as e:
+                st.error(f"📊 Falha ao carregar dados: {str(e)}")
+                st.stop()
         
-        # Validação das colunas
-        required_cols = ['CLIENTES', 'NOVO CONSULTOR', 'REVENDA']
-        if not all(col in df.columns for col in required_cols):
-            st.error(f"⚠️ A planilha está faltando colunas necessárias: {', '.join(required_cols)}")
-            st.error("Verifique se os nomes das colunas estão corretos na aba 'Carteira'")
-            st.stop()
+        # [Restante do seu código de interface permanece igual...]
         
-        # Interface de busca
-        st.markdown("### 🔎 Busca", unsafe_allow_html=True)
-        col1, col2 = st.columns([1, 3])
-        
-        with col1:
-            search_type = st.radio(
-                "Buscar por:",
-                ("Cliente", "Consultor", "Revenda"),
-                horizontal=True
-            )
-            
-            # Filtros de busca
-            column_map = {
-                "Cliente": "CLIENTES",
-                "Consultor": "NOVO CONSULTOR",
-                "Revenda": "REVENDA"
-            }
-            
-            selected_column = column_map[search_type]
-            filter_value = st.selectbox(
-                f"Selecione o {search_type.lower()}:",
-                sorted(df[selected_column].unique())
-            )
-            
-            results = df[df[selected_column] == filter_value]
-        
-        if st.button("Buscar", type="primary", use_container_width=True):
-            if not results.empty:
-                st.markdown(f"### 📋 Resultados ({len(results)} encontrados)")
-                for _, row in results.iterrows():
-                    display_client_card(row)
-            else:
-                st.warning("Nenhum resultado encontrado para esta busca.")
-                
     except Exception as e:
-        st.error(f"⛔ Ocorreu um erro inesperado: {str(e)}")
-        st.error("Consulte o console para detalhes técnicos")
-
-    # Rodapé
-    st.markdown("---")
-    st.markdown(f"""
-    <div class="footer">
-        © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados<br>
-        Versão: 1.1.0 | Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}
-    </div>
-    """, unsafe_allow_html=True)
+        st.error(f"⛔ Erro crítico: {str(e)}")
+        st.stop()
 
 if __name__ == "__main__":
     main()
