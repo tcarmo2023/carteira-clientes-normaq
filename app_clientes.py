@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import datetime
 
 # ——————————————————————————————
 #  CONFIGURAÇÃO DA PÁGINA
@@ -25,7 +26,6 @@ def get_google_creds():
             return Credentials.from_service_account_info(
                 st.secrets["gcp_service_account"], scopes=scopes
             )
-        # Lugar alternativo — arquivos locais (não usado no Cloud)
         st.error("Erro nas credenciais: gcp_service_account não encontrado")
         st.stop()
     except Exception as e:
@@ -40,7 +40,7 @@ def load_sheet_data(client, spreadsheet_url):
         spreadsheet = client.open_by_url(spreadsheet_url)
         available_sheets = [ws.title for ws in spreadsheet.worksheets()]
         
-        sheet_name = "Página1"  # Ajustado para o nome correto da aba
+        sheet_name = "Página1"
         if sheet_name not in available_sheets:
             raise Exception(f"Aba '{sheet_name}' não encontrada. Abas disponíveis: {', '.join(available_sheets)}")
         
@@ -71,7 +71,6 @@ def main():
     creds = get_google_creds()
     client = gspread.authorize(creds)
     
-    # URL da planilha no formato compartilhável
     SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
     
     @st.cache_data(ttl=3600)
@@ -85,20 +84,55 @@ def main():
         st.warning("⚠️ Nenhum dado disponível para exibir.")
         return
     
-    st.success(f"✅ {len(df)} registros carregados!")
+    # Mensagem de sucesso com separador de milhar
+    total_registros = f"{len(df):,}".replace(",", ".")
+    st.success(f"✅ {total_registros} registros carregados!")
     
-    # ——————————————————————————————
-    # Pesquisa interativa
     st.subheader("🔎 Buscar Cliente")
     cliente = st.selectbox(
         "Selecione um cliente:",
         sorted(df["CLIENTES"].dropna().unique())
     )
     
+    # Exibir dados do cliente com destaque visual estilo "card"
     if cliente:
         row = df[df["CLIENTES"] == cliente].iloc[0]
-        st.write(f"**👤 Consultor:** {row['NOVO CONSULTOR']}")
-        st.write(f"**🏢 Revenda:** {row['REVENDA']}")
+        st.markdown(
+            f"""
+            <div style='
+                background-color: #1e1e1e;
+                border-radius: 10px;
+                padding: 15px;
+                margin-top: 15px;
+                display: inline-block;
+                box-shadow: 0px 2px 6px rgba(0,0,0,0.4);
+            '>
+                <p style='font-size:20px; margin: 5px 0;'>
+                    <strong style='color:#4CAF50;'>👤 Consultor:</strong> 
+                    <span style='font-weight:bold; color:white;'>{row['NOVO CONSULTOR']}</span>
+                </p>
+                <p style='font-size:20px; margin: 5px 0;'>
+                    <strong style='color:#2196F3;'>🏢 Revenda:</strong> 
+                    <span style='font-weight:bold; color:white;'>{row['REVENDA']}</span>
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    
+    # ——————————————————————————————
+    #  RODAPÉ
+    # ——————————————————————————————
+    st.markdown(
+        f"""
+        <hr>
+        <p style='text-align: center; font-size: 12px; color: gray;'>
+        © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados<br>
+        Versão: 1.1.0 | Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
