@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import os
 from datetime import datetime
 
-# Configuração da página (fora da função main para evitar reexecução)
+# Configuração da página
 st.set_page_config(
     page_title="Carteira de Clientes Normaq",
     page_icon="🔍",
@@ -45,23 +45,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def get_google_creds():
+    """Obtém credenciais do Google Sheets com tratamento de erros"""
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
     
-    if 'gcp_service_account' not in st.secrets:
-        st.error("Credenciais não encontradas no secrets.toml")
-        st.stop()
-        
-    try:
-        return Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"],
-            scopes=scopes
-        )
-    except Exception as e:
-        st.error(f"Erro ao carregar credenciais: {str(e)}")
-        st.stop()
+    # 1. Tentar secrets.toml (para produção no Streamlit Cloud)
+    if 'gcp_service_account' in st.secrets:
+        try:
+            return Credentials.from_service_account_info(
+                st.secrets["gcp_service_account"],
+                scopes=scopes
+            )
+        except Exception as e:
+            st.error(f"Erro ao carregar credenciais do secrets.toml: {str(e)}")
     
     # 2. Tentar locais alternativos para credentials.json
     creds_paths = [
@@ -76,8 +74,7 @@ def get_google_creds():
             try:
                 return Credentials.from_service_account_file(path, scopes=scopes)
             except Exception as e:
-                st.error(f"Erro ao ler credenciais em {path}")
-                st.error(str(e))
+                st.error(f"Erro ao ler credenciais em {path}: {str(e)}")
                 continue
     
     st.error("""
@@ -90,7 +87,8 @@ def get_google_creds():
 def load_sheet_data(client, spreadsheet_name):
     """Carrega dados da planilha com tratamento de erros"""
     try:
-        sheet = client.open(spreadsheet_name).sheet1
+        # Acessa a aba específica "Carteira"
+        sheet = client.open(spreadsheet_name).worksheet("Carteira")
         data = sheet.get_all_records()
         df = pd.DataFrame(data).dropna(how='all')
         
@@ -105,6 +103,10 @@ def load_sheet_data(client, spreadsheet_name):
     except gspread.exceptions.SpreadsheetNotFound:
         st.error(f"📂 Planilha '{spreadsheet_name}' não encontrada!")
         st.error("Verifique o nome no Google Sheets")
+        st.stop()
+    except gspread.exceptions.WorksheetNotFound:
+        st.error("📑 A aba 'Carteira' não foi encontrada na planilha!")
+        st.error("Verifique se o nome da aba está correto")
         st.stop()
     except Exception as e:
         st.error(f"⛔ Erro ao carregar dados: {str(e)}")
@@ -127,13 +129,17 @@ def main():
     try:
         # Autenticação
         with st.spinner("Conectando ao Google Sheets..."):
-            creds = get_google_credentials()
+            creds = get_google_creds()
             client = gspread.authorize(creds)
+        
+        # Teste de conexão (opcional - pode remover depois)
+        test_sheet = client.open("Carreira de Clientes_v02.xlsx")
+        st.success(f"✅ Conectado com sucesso! Abas disponíveis: {[ws.title for ws in test_sheet.worksheets()]}")
         
         # Carregar dados (com cache de 1 hora)
         @st.cache_data(ttl=3600, show_spinner="Carregando dados da planilha...")
         def get_data():
-            return load_sheet_data(client, "Carteira de Clientes_v02.xlsx")
+            return load_sheet_data(client, "Carreira de Clientes_v02.xlsx")
             
         df = get_data()
         
@@ -141,6 +147,7 @@ def main():
         required_cols = ['CLIENTES', 'NOVO CONSULTOR', 'REVENDA']
         if not all(col in df.columns for col in required_cols):
             st.error(f"⚠️ A planilha está faltando colunas necessárias: {', '.join(required_cols)}")
+            st.error("Verifique se os nomes das colunas estão corretos na aba 'Carteira'")
             st.stop()
         
         # Interface de busca
@@ -151,32 +158,23 @@ def main():
             search_type = st.radio(
                 "Buscar por:",
                 ("Cliente", "Consultor", "Revenda"),
-                horizontal=True,
-                key="search_type"
+                horizontal=True
             )
             
             # Filtros de busca
-            if search_type == "Cliente":
-                filter_value = st.selectbox(
-                    "Selecione o cliente:",
-                    sorted(df["CLIENTES"].unique()),
-                    key="client_select"
-                )
-                results = df[df["CLIENTES"] == filter_value]
-            elif search_type == "Consultor":
-                filter_value = st.selectbox(
-                    "Selecione o consultor:",
-                    sorted(df["NOVO CONSULTOR"].unique()),
-                    key="consultant_select"
-                )
-                results = df[df["NOVO CONSULTOR"] == filter_value]
-            else:
-                filter_value = st.selectbox(
-                    "Selecione a revenda:",
-                    sorted(df["REVENDA"].unique()),
-                    key="reseller_select"
-                )
-                results = df[df["REVENDA"] == filter_value]
+            column_map = {
+                "Cliente": "CLIENTES",
+                "Consultor": "NOVO CONSULTOR",
+                "Revenda": "REVENDA"
+            }
+            
+            selected_column = column_map[search_type]
+            filter_value = st.selectbox(
+                f"Selecione o {search_type.lower()}:",
+                sorted(df[selected_column].unique())
+            )
+            
+            results = df[df[selected_column] == filter_value]
         
         if st.button("Buscar", type="primary", use_container_width=True):
             if not results.empty:
