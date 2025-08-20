@@ -24,64 +24,34 @@ def get_google_creds():
     ]
     
     try:
-        # Opção 1: Secrets do Streamlit Cloud
+        # Verifica se existe no secrets do Streamlit
         if "gcp_service_account" in st.secrets:
-            creds_info = st.secrets["gcp_service_account"]
+            creds_data = st.secrets["gcp_service_account"]
             
-            # Verifica se é string JSON ou já é dict
-            if isinstance(creds_info, str):
-                creds_info = json.loads(creds_info)
+            # Se for string, converte para dict
+            if isinstance(creds_data, str):
+                try:
+                    creds_data = json.loads(creds_data)
+                except json.JSONDecodeError:
+                    st.error("❌ JSON inválido no secrets.toml")
+                    st.error("Verifique se o JSON está bem formatado")
+                    st.stop()
             
-            return Credentials.from_service_account_info(creds_info, scopes=scopes)
+            return Credentials.from_service_account_info(creds_data, scopes=scopes)
         
-        # Opção 2: Arquivo local (para desenvolvimento)
+        # Fallback para arquivo local
         try:
             return Credentials.from_service_account_file("credentials.json", scopes=scopes)
         except FileNotFoundError:
-            pass
+            st.error("❌ Nenhuma credencial encontrada")
+            st.stop()
             
-        st.error("""
-        🔐 Credenciais não configuradas!
-        
-        **Para configurar:**
-        
-        1. **Streamlit Cloud**: Adicione as credenciais em Settings → Secrets
-        2. **Desenvolvimento local**: Coloque o arquivo `credentials.json` na pasta do projeto
-        
-        **Formato do secrets.toml:**
-        ```toml
-        gcp_service_account = '''
-        {
-          "type": "service_account",
-          "project_id": "seu-project-id",
-          "private_key_id": "sua-chave",
-          "private_key": "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n",
-          "client_email": "seu-email@projeto.iam.gserviceaccount.com",
-          "client_id": "123456789",
-          "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-          "token_uri": "https://oauth2.googleapis.com/token",
-          "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-          "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/...",
-          "universe_domain": "googleapis.com"
-        }
-        '''
-        ```
-        """)
-        st.stop()
-        
-    except json.JSONDecodeError:
-        st.error("""
-        ❌ Formato JSON inválido nas credenciais!
-        
-        Verifique se o JSON está bem formatado no secrets.toml
-        """)
-        st.stop()
     except Exception as e:
-        st.error(f"🔐 Erro ao carregar credenciais: {str(e)}")
+        st.error(f"🔐 Erro nas credenciais: {str(e)}")
         st.stop()
 
 # ——————————————————————————————
-#  FUNÇÃO PARA CARREGAR PLANILHA
+#  RESTANTE DO CÓDIGO (mantenha igual)
 # ——————————————————————————————
 def load_sheet_data(client, spreadsheet_url):
     try:
@@ -110,9 +80,6 @@ def load_sheet_data(client, spreadsheet_url):
         st.error(f"📊 Erro ao carregar dados da planilha: {e}")
         return None
 
-# ——————————————————————————————
-#  INTERFACE PRINCIPAL
-# ——————————————————————————————
 def main():
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
     
@@ -134,7 +101,6 @@ def main():
             st.warning("⚠️ Nenhum dado disponível para exibir.")
             return
         
-        # Mensagem de sucesso com separador de milhar
         total_registros = f"{len(df):,}".replace(",", ".")
         st.success(f"✅ {total_registros} registros carregados!")
         
@@ -144,7 +110,6 @@ def main():
             sorted(df["CLIENTES"].dropna().unique())
         )
         
-        # Exibir dados do cliente com destaque visual estilo "card"
         if cliente:
             row = df[df["CLIENTES"] == cliente].iloc[0]
             st.markdown(
@@ -173,9 +138,6 @@ def main():
     except Exception as e:
         st.error(f"⛔ Erro na aplicação: {str(e)}")
     
-    # ——————————————————————————————
-    #  RODAPÉ
-    # ——————————————————————————————
     st.markdown(
         f"""
         <hr>
