@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ——————————————————————————————
-#  FUNÇÃO DE CREDENCIAIS - CORRIGIDA
+#  FUNÇÃO DE CREDENCIAIS - SEM MENSAGENS
 # ——————————————————————————————
 def get_google_creds():
     scopes = [
@@ -24,152 +24,165 @@ def get_google_creds():
     ]
     
     try:
-        # Verifica se existe no secrets do Streamlit
-        if hasattr(st.secrets, "gcp_service_account"):
-            creds_data = st.secrets.gcp_service_account
-            
-            # Se for dict (formato TOML), usa diretamente
-            if isinstance(creds_data, dict):
-                return Credentials.from_service_account_info(creds_data, scopes=scopes)
-            
-            # Se for string (formato JSON), converte
-            elif isinstance(creds_data, str):
-                try:
-                    creds_dict = json.loads(creds_data)
-                    return Credentials.from_service_account_info(creds_dict, scopes=scopes)
-                except json.JSONDecodeError as e:
-                    st.error(f"❌ JSON inválido: {e}")
-                    st.error("Verifique a formatação do JSON")
-                    st.stop()
-        
-        # Fallback para arquivo local
-        try:
-            return Credentials.from_service_account_file("credentials.json", scopes=scopes)
-        except FileNotFoundError:
-            st.error("""
-            ❌ Nenhuma credencial encontrada!
-            
-            Configure o secrets.toml no Streamlit Cloud com:
-            
-            **Formato TOML (RECOMENDADO):**
-            ```toml
-            [gcp_service_account]
-            type = "service_account"
-            project_id = "seu-project-id"
-            private_key_id = "sua-private-key-id"
-            private_key = "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"
-            client_email = "seu-email@projeto.iam.gserviceaccount.com"
-            client_id = "123456789"
-            auth_uri = "https://accounts.google.com/o/oauth2/auth"
-            token_uri = "https://oauth2.googleapis.com/token"
-            auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
-            client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/..."
-            universe_domain = "googleapis.com"
-            ```
-            """)
+        if not hasattr(st.secrets, "gcp_service_account"):
+            st.error("Credenciais não configuradas")
             st.stop()
             
-    except Exception as e:
-        st.error(f"🔐 Erro nas credenciais: {str(e)}")
-        st.error("Verifique se a chave privada está completa e bem formatada")
+        creds_config = st.secrets.gcp_service_account
+        
+        # Verificação silenciosa dos campos obrigatórios
+        required_fields = ['type', 'project_id', 'private_key_id', 'private_key', 'client_email']
+        missing_fields = [field for field in required_fields if field not in creds_config]
+        
+        if missing_fields:
+            st.error("Configuração incompleta das credenciais")
+            st.stop()
+            
+        # Verifica chave privada silenciosamente
+        private_key = creds_config['private_key']
+        if not private_key.startswith('-----BEGIN PRIVATE KEY-----') or not private_key.endswith('-----END PRIVATE KEY-----'):
+            st.error("Formato inválido da chave privada")
+            st.stop()
+        
+        return Credentials.from_service_account_info(creds_config, scopes=scopes)
+        
+    except Exception:
+        st.error("Erro ao carregar credenciais")
         st.stop()
 
 # ——————————————————————————————
-#  RESTANTE DO CÓDIGO (MANTIDO)
+#  FUNÇÃO PARA CARREGAR PLANILHA - SEM MENSAGENS
 # ——————————————————————————————
 def load_sheet_data(client, spreadsheet_url):
     try:
         spreadsheet = client.open_by_url(spreadsheet_url)
-        available_sheets = [ws.title for ws in spreadsheet.worksheets()]
         
-        sheet_name = "Página1"
-        if sheet_name not in available_sheets:
-            raise Exception(f"Aba '{sheet_name}' não encontrada. Abas disponíveis: {', '.join(available_sheets)}")
+        # Tenta encontrar a aba correta silenciosamente
+        sheet_names = ["Página1", "Carteira", "Sheet1", "Planilha1"]
+        worksheet = None
         
-        worksheet = spreadsheet.worksheet(sheet_name)
+        for sheet_name in sheet_names:
+            try:
+                worksheet = spreadsheet.worksheet(sheet_name)
+                break
+            except:
+                continue
+                
+        if worksheet is None:
+            return None
+        
         records = worksheet.get_all_records()
         if not records:
-            raise Exception("A planilha está vazia ou não contém dados formatados como uma tabela.")
+            return None
         
         df = pd.DataFrame(records).dropna(how="all")
-        df.columns = [c.strip().upper() for c in df.columns]
-        
-        required_cols = {'CLIENTES', 'NOVO CONSULTOR', 'REVENDA'}
-        missing = required_cols - set(df.columns)
-        if missing:
-            raise Exception(f"Colunas obrigatórias faltando: {', '.join(missing)}")
+        df.columns = [str(c).strip().upper() for c in df.columns]
         
         return df
-    except Exception as e:
-        st.error(f"📊 Erro ao carregar dados da planilha: {e}")
+        
+    except Exception:
         return None
 
+# ——————————————————————————————
+#  INTERFACE PRINCIPAL LIMPA
+# ——————————————————————————————
 def main():
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
     
-    try:
-        with st.spinner("Conectando ao Google Sheets..."):
+    # Container principal para evitar flickering
+    main_container = st.container()
+    
+    with main_container:
+        try:
+            # Autenticação silenciosa
             creds = get_google_creds()
             client = gspread.authorize(creds)
-        st.success("✅ Autenticação bem-sucedida!")
-        
-        SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
-        
-        @st.cache_data(ttl=3600)
-        def get_data():
-            return load_sheet_data(client, SPREADSHEET_URL)
-        
-        with st.spinner("Carregando dados da planilha..."):
+            
+            SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
+            
+            @st.cache_data(ttl=3600)
+            def get_data():
+                return load_sheet_data(client, SPREADSHEET_URL)
+            
             df = get_data()
-        
-        if df is None or df.empty:
-            st.warning("⚠️ Nenhum dado disponível para exibir.")
-            return
-        
-        total_registros = f"{len(df):,}".replace(",", ".")
-        st.success(f"✅ {total_registros} registros carregados!")
-        
-        st.subheader("🔎 Buscar Cliente")
-        cliente = st.selectbox(
-            "Selecione um cliente:",
-            sorted(df["CLIENTES"].dropna().unique())
-        )
-        
-        if cliente:
-            row = df[df["CLIENTES"] == cliente].iloc[0]
-            st.markdown(
-                f"""
-                <div style='
-                    background-color: #1e1e1e;
-                    border-radius: 10px;
-                    padding: 15px;
-                    margin-top: 15px;
-                    display: inline-block;
-                    box-shadow: 0px 2px 6px rgba(0,0,0,0.4);
-                '>
-                    <p style='font-size:20px; margin: 5px 0;'>
-                        <strong style='color:#4CAF50;'>👤 Consultor:</strong> 
-                        <span style='font-weight:bold; color:white;'>{row['NOVO CONSULTOR']}</span>
-                    </p>
-                    <p style='font-size:20px; margin: 5px 0;'>
-                        <strong style='color:#2196F3;'>🏢 Revenda:</strong> 
-                        <span style='font-weight:bold; color:white;'>{row['REVENDA']}</span>
-                    </p>
-                </div>
-                """,
-                unsafe_allow_html=True
+            
+            if df is None or df.empty:
+                st.warning("Nenhum dado disponível")
+                return
+            
+            # Busca de cliente - interface limpa
+            st.subheader("🔎 Buscar Cliente")
+            
+            # Verifica se as colunas necessárias existem
+            if "CLIENTES" not in df.columns:
+                st.warning("Coluna 'CLIENTES' não encontrada na planilha")
+                return
+                
+            clientes_disponiveis = sorted(df["CLIENTES"].dropna().unique())
+            
+            if not clientes_disponiveis:
+                st.warning("Nenhum cliente cadastrado")
+                return
+                
+            cliente = st.selectbox(
+                "Selecione um cliente:",
+                clientes_disponiveis,
+                key="cliente_select"
             )
-        
-    except Exception as e:
-        st.error(f"⛔ Erro na aplicação: {str(e)}")
+            
+            if cliente:
+                # Encontra o cliente
+                cliente_data = df[df["CLIENTES"] == cliente]
+                if not cliente_data.empty:
+                    row = cliente_data.iloc[0]
+                    
+                    # Exibe informações em card elegante
+                    col1, col2 = st.columns([1, 2])
+                    
+                    with col1:
+                        st.markdown(
+                            f"""
+                            <div style='
+                                background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+                                border-radius: 12px;
+                                padding: 20px;
+                                margin: 15px 0;
+                                box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+                                color: white;
+                                border-left: 4px solid #4CAF50;
+                            '>
+                                <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                                    <strong style='color:#4CAF50; font-size:14px;'>👤 CONSULTOR:</strong><br>
+                                    <span style='font-size:18px; font-weight:600;'>{row.get('NOVO CONSULTOR', 'Não informado')}</span>
+                                </p>
+                                <hr style='border: 0.5px solid #444; margin: 15px 0;'>
+                                <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                                    <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                    <span style='font-size:18px; font-weight:600;'>{row.get('REVENDA', 'Não informada')}</span>
+                                </p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    
+                    with col2:
+                        # Informações adicionais (se houver mais colunas)
+                        st.info("💡 Selecione um cliente para visualizar as informações completas")
+                        
+            else:
+                st.info("👆 Selecione um cliente na lista acima")
+            
+        except Exception:
+            st.error("Erro ao carregar a aplicação")
     
+    # Rodapé discreto
+    st.markdown("---")
     st.markdown(
         f"""
-        <hr>
-        <p style='text-align: center; font-size: 12px; color: gray;'>
-        © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados<br>
-        Versão: 1.1.0 | Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')}
-        </p>
+        <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
+        © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
+        Versão 1.2.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        </div>
         """,
         unsafe_allow_html=True
     )
