@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ——————————————————————————————
-#  FUNÇÃO DE CREDENCIAIS MELHORADA
+#  FUNÇÃO DE CREDENCIAIS - CORRIGIDA
 # ——————————————————————————————
 def get_google_creds():
     scopes = [
@@ -25,33 +25,57 @@ def get_google_creds():
     
     try:
         # Verifica se existe no secrets do Streamlit
-        if "gcp_service_account" in st.secrets:
-            creds_data = st.secrets["gcp_service_account"]
+        if hasattr(st.secrets, "gcp_service_account"):
+            creds_data = st.secrets.gcp_service_account
             
-            # Se for string, converte para dict
-            if isinstance(creds_data, str):
+            # Se for dict (formato TOML), usa diretamente
+            if isinstance(creds_data, dict):
+                return Credentials.from_service_account_info(creds_data, scopes=scopes)
+            
+            # Se for string (formato JSON), converte
+            elif isinstance(creds_data, str):
                 try:
-                    creds_data = json.loads(creds_data)
-                except json.JSONDecodeError:
-                    st.error("❌ JSON inválido no secrets.toml")
-                    st.error("Verifique se o JSON está bem formatado")
+                    creds_dict = json.loads(creds_data)
+                    return Credentials.from_service_account_info(creds_dict, scopes=scopes)
+                except json.JSONDecodeError as e:
+                    st.error(f"❌ JSON inválido: {e}")
+                    st.error("Verifique a formatação do JSON")
                     st.stop()
-            
-            return Credentials.from_service_account_info(creds_data, scopes=scopes)
         
         # Fallback para arquivo local
         try:
             return Credentials.from_service_account_file("credentials.json", scopes=scopes)
         except FileNotFoundError:
-            st.error("❌ Nenhuma credencial encontrada")
+            st.error("""
+            ❌ Nenhuma credencial encontrada!
+            
+            Configure o secrets.toml no Streamlit Cloud com:
+            
+            **Formato TOML (RECOMENDADO):**
+            ```toml
+            [gcp_service_account]
+            type = "service_account"
+            project_id = "seu-project-id"
+            private_key_id = "sua-private-key-id"
+            private_key = "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"
+            client_email = "seu-email@projeto.iam.gserviceaccount.com"
+            client_id = "123456789"
+            auth_uri = "https://accounts.google.com/o/oauth2/auth"
+            token_uri = "https://oauth2.googleapis.com/token"
+            auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
+            client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/..."
+            universe_domain = "googleapis.com"
+            ```
+            """)
             st.stop()
             
     except Exception as e:
         st.error(f"🔐 Erro nas credenciais: {str(e)}")
+        st.error("Verifique se a chave privada está completa e bem formatada")
         st.stop()
 
 # ——————————————————————————————
-#  RESTANTE DO CÓDIGO (mantenha igual)
+#  RESTANTE DO CÓDIGO (MANTIDO)
 # ——————————————————————————————
 def load_sheet_data(client, spreadsheet_url):
     try:
@@ -84,8 +108,9 @@ def main():
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
     
     try:
-        creds = get_google_creds()
-        client = gspread.authorize(creds)
+        with st.spinner("Conectando ao Google Sheets..."):
+            creds = get_google_creds()
+            client = gspread.authorize(creds)
         st.success("✅ Autenticação bem-sucedida!")
         
         SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
