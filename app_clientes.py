@@ -110,6 +110,28 @@ def main():
                 st.warning("Nenhum dado disponível")
                 return
             
+            # Contador de registros (discreto no canto superior direito)
+            total_registros = f"{len(df):,}".replace(",", ".")
+            st.markdown(
+                f"""
+                <div style='
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: #f8f9fa;
+                    padding: 5px 12px;
+                    border-radius: 15px;
+                    font-size: 12px;
+                    color: #666;
+                    border: 1px solid #e9ecef;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                '>
+                📊 {total_registros} registros
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            
             # Busca de cliente - interface limpa
             st.subheader("🔎 Buscar Cliente")
             
