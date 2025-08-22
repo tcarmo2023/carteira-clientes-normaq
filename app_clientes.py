@@ -38,6 +38,15 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     return df
 
 # ——————————————————————————————
+#  FUNÇÃO FLEXÍVEL PARA PEGAR VALORES
+# ——————————————————————————————
+def get_value(row, col_name, default="Não informado"):
+    for col in row.index:
+        if col.strip().upper() == col_name.upper():
+            return row[col] if row[col] not in [None, ""] else default
+    return default
+
+# ——————————————————————————————
 #  INTERFACE PRINCIPAL
 # ——————————————————————————————
 def main():
@@ -83,17 +92,17 @@ def main():
                     '>
                         <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                             <strong style='color:#4CAF50; font-size:14px;'>👤 CONSULTOR:</strong><br>
-                            <span style='font-size:18px; font-weight:600;'>{row.get('NOVO CONSULTOR', 'Não informado')}</span>
+                            <span style='font-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
                         </p>
                         <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                         <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                             <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
-                            <span style='font-size:18px; font-weight:600;'>{row.get('REVENDA', 'Não informada')}</span>
+                            <span style='font-size:18px; font-weight:600;'>{get_value(row, "REVENDA")}</span>
                         </p>
                         <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                         <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                             <strong style='color:#FF9800; font-size:14px;'>🔧 PSSR:</strong><br>
-                            <span style='font-size:18px; font-weight:600;'>{row.get('PSSR', 'Não informado')}</span>
+                            <span style='font-size:18px; font-weight:600;'>{get_value(row, "PSSR")}</span>
                         </p>
                     </div>
                     """,
@@ -164,7 +173,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.3.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.3.1 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         </div>
         """,
         unsafe_allow_html=True
