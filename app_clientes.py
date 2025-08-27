@@ -16,7 +16,13 @@ st.set_page_config(
 # ——————————————————————————————
 #  CHECAGEM DE PING (para UptimeRobot)
 # ——————————————————————————————
-params = st.query_params
+try:
+    # Para versões novas do Streamlit (>=1.30)
+    params = st.query_params()
+except TypeError:
+    # Fallback para versões antigas
+    params = st.experimental_get_query_params()
+
 if params.get("ping") == "1":
     st.write("ok")
     st.stop()
@@ -186,7 +192,6 @@ def main():
         """,
         unsafe_allow_html=True
     )
-
 
 if __name__ == "__main__":
     main()
