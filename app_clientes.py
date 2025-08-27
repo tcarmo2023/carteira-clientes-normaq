@@ -16,14 +16,17 @@ st.set_page_config(
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (CORRIGIDO)
 # ——————————————————————————————
-# Movido para dentro do contexto do Streamlit
+# Verificação mais robusta para o UptimeRobot
 try:
     params = st.query_params
     if params.get("ping") == "1":
+        # Resposta mínima para o UptimeRobot
         st.write("ok")
-        st.stop()
+        # Para completamente a execução
+        raise st.script_runner.StopException
 except:
-    pass  # Continua se não conseguir acessar query_params
+    # Se der erro na verificação, continua normal
+    pass
 
 # ——————————————————————————————
 #  FUNÇÃO DE CREDENCIAIS
