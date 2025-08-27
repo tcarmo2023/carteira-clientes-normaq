@@ -5,6 +5,14 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ——————————————————————————————
+#  VERIFICAÇÃO PING UPTIMEROBOT (ADICIONE ESTA PARTE NO INÍCIO)
+# ——————————————————————————————
+params = st.query_params
+if params.get("ping") == "1":
+    st.write("ok")
+    st.stop()
+
+# ——————————————————————————————
 #  CONFIGURAÇÃO DA PÁGINA
 # ——————————————————————————————
 st.set_page_config(
