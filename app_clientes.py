@@ -14,6 +14,14 @@ st.set_page_config(
 )
 
 # ——————————————————————————————
+#  CHECAGEM DE PING (para UptimeRobot)
+# ——————————————————————————————
+params = st.query_params
+if params.get("ping") == "1":
+    st.write("ok")
+    st.stop()
+
+# ——————————————————————————————
 #  FUNÇÃO DE CREDENCIAIS
 # ——————————————————————————————
 def get_google_creds():
