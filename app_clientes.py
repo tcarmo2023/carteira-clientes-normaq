@@ -3,6 +3,15 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+import os
+
+# ——————————————————————————————
+#  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
+# ——————————————————————————————
+# Verifica se é uma requisição do UptimeRobot antes de qualquer coisa
+if 'QUERY_STRING' in os.environ and 'ping=1' in os.environ['QUERY_STRING']:
+    print("ok")
+    exit(0)
 
 # ——————————————————————————————
 #  CONFIGURAÇÃO DA PÁGINA
@@ -14,18 +23,15 @@ st.set_page_config(
 )
 
 # ——————————————————————————————
-#  VERIFICAÇÃO PING UPTIMEROBOT (CORRIGIDO)
+#  VERIFICAÇÃO ALTERNATIVA
 # ——————————————————————————————
-# Verificação mais robusta para o UptimeRobot
+# Verificação adicional para garantir
 try:
     params = st.query_params
     if params.get("ping") == "1":
-        # Resposta mínima para o UptimeRobot
         st.write("ok")
-        # Para completamente a execução
-        raise st.script_runner.StopException
+        st.stop()
 except:
-    # Se der erro na verificação, continua normal
     pass
 
 # ——————————————————————————————
