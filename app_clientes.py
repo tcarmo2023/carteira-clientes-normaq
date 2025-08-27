@@ -5,14 +5,6 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ——————————————————————————————
-#  VERIFICAÇÃO PING UPTIMEROBOT (ADICIONE ESTA PARTE NO INÍCIO)
-# ——————————————————————————————
-params = st.query_params
-if params.get("ping") == "1":
-    st.write("ok")
-    st.stop()
-
-# ——————————————————————————————
 #  CONFIGURAÇÃO DA PÁGINA
 # ——————————————————————————————
 st.set_page_config(
@@ -20,6 +12,18 @@ st.set_page_config(
     page_icon="🔍",
     layout="wide",
 )
+
+# ——————————————————————————————
+#  VERIFICAÇÃO PING UPTIMEROBOT (CORRIGIDO)
+# ——————————————————————————————
+# Movido para dentro do contexto do Streamlit
+try:
+    params = st.query_params
+    if params.get("ping") == "1":
+        st.write("ok")
+        st.stop()
+except:
+    pass  # Continua se não conseguir acessar query_params
 
 # ——————————————————————————————
 #  FUNÇÃO DE CREDENCIAIS
