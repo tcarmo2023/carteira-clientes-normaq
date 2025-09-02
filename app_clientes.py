@@ -93,8 +93,12 @@ def update_sheet_data(client, spreadsheet_url, sheet_name, row_index, data):
     
     # Preparar dados para atualização
     for col_name, value in data.items():
-        col_index = headers.index(col_name.upper()) + 1
-        worksheet.update_cell(row_index, col_index, value)
+        # Verificar se o cabeçalho existe na planilha
+        if col_name.upper() in headers:
+            col_index = headers.index(col_name.upper()) + 1
+            worksheet.update_cell(row_index, col_index, value)
+        else:
+            st.warning(f"Coluna '{col_name}' não encontrada na planilha.")
     
     return True
 
@@ -234,7 +238,7 @@ def main():
                                 <div style='
                                     background: #f8f9fa;
                                     padding: 10px 15px;
-                                    border-radius: 10px;
+                                    borderRadius: 10px;
                                     margin-bottom: 10px;
                                     font-size: 16px;
                                     color: #333;
@@ -307,7 +311,7 @@ def main():
                 
                 with col1:
                     cliente = st.text_input("CLIENTE*")
-                    consultor = st.text_input("CONSULTOR*")
+                    consultor = st.text_input("NOVO CONSULTOR*")
                     revenda = st.text_input("REVENDA*")
                 
                 with col2:
@@ -372,7 +376,7 @@ def main():
                         
                         with col1:
                             novo_cliente = st.text_input("CLIENTE", value=get_value(cliente_data, "CLIENTES"))
-                            novo_consultor = st.text_input("CONSULTOR", value=get_value(cliente_data, "NOVO CONSULTOR"))
+                            novo_consultor = st.text_input("NOVO CONSULTOR", value=get_value(cliente_data, "NOVO CONSULTOR"))
                             nova_revenda = st.text_input("REVENDA", value=get_value(cliente_data, "REVENDA"))
                         
                         with col2:
@@ -388,7 +392,7 @@ def main():
                                 # Encontrar índice da linha
                                 row_index = df_pagina1[df_pagina1["CLIENTES"] == cliente_ajuste].index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
                                 
-                                # Preparar dados para atualização
+                                # Preparar dados para atualização (usando os nomes exatos das colunas da planilha)
                                 dados_atualizados = {
                                     "CLIENTES": novo_cliente,
                                     "NOVO CONSULTOR": novo_consultor,
@@ -420,7 +424,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.4.1 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.4.2 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         </div>
         """,
         unsafe_allow_html=True
