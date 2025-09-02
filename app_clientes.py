@@ -182,13 +182,15 @@ def main():
             consulta_por = st.radio("Consultar por:", ["Cliente", "CNPJ/CPF"], horizontal=True)
             
             if consulta_por == "Cliente":
-                clientes_disponiveis = sorted(df_pagina1["CLIENTES"].dropna().unique())
+                # Converter para string para evitar erro de comparação
+                clientes_disponiveis = sorted([str(cliente) for cliente in df_pagina1["CLIENTES"].dropna().unique()])
                 cliente_selecionado = st.selectbox("Selecione um cliente:", clientes_disponiveis, key="cliente_select")
-                cliente_data = df_pagina1[df_pagina1["CLIENTES"] == cliente_selecionado]
+                cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_selecionado]
             else:
-                cnpj_cpf_disponiveis = sorted(df_pagina1["CNPJ/CPF"].dropna().unique())
+                # Converter CNPJ/CPF para string para evitar erro de comparação
+                cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CNPJ/CPF"].dropna().unique()])
                 cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis, key="cnpj_select")
-                cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"] == cnpj_cpf_selecionado]
+                cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"].astype(str) == cnpj_cpf_selecionado]
                 cliente_selecionado = get_value(cliente_data.iloc[0], "CLIENTES") if not cliente_data.empty else ""
 
             if not cliente_data.empty:
@@ -243,7 +245,7 @@ def main():
 
                 with col2:
                     if df_pagina2 is not None and not df_pagina2.empty:
-                        maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"] == cliente_selecionado]
+                        maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
 
                         if not maquinas_cliente.empty:
                             qtd_maquinas = len(maquinas_cliente)
@@ -381,57 +383,62 @@ def main():
                 # Carregar dados
                 df_pagina1 = get_data("Página1")
                 
-                # Selecionar cliente para ajuste
-                opcoes_clientes = sorted(df_pagina1["CLIENTES"].dropna().unique())
+                # Selecionar cliente para ajuste (convertendo para string)
+                opcoes_clientes = sorted([str(cliente) for cliente in df_pagina1["CLIENTES"].dropna().unique()])
                 cliente_ajuste = st.selectbox("Selecione o cliente para ajuste:", opcoes_clientes)
                 
                 if cliente_ajuste:
                     # Obter dados do cliente selecionado
-                    cliente_data = df_pagina1[df_pagina1["CLIENTES"] == cliente_ajuste].iloc[0]
+                    cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_ajuste]
                     
-                    with st.form("form_ajuste"):
-                        st.subheader(f"Editando: {cliente_ajuste}")
+                    if not cliente_data.empty:
+                        cliente_data_row = cliente_data.iloc[0]
                         
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            novo_cliente = st.text_input("CLIENTES", value=get_value(cliente_data, "CLIENTES"))
-                            novo_consultor = st.text_input("NOVO CONSULTOR", value=get_value(cliente_data, "NOVO CONSULTOR"))
-                            nova_revenda = st.text_input("Revenda", value=get_value(cliente_data, "Revenda"))
-                        
-                        with col2:
-                            novo_pssr = st.text_input("PSSR", value=get_value(cliente_data, "PSSR"))
-                            novo_cnpj = st.text_input("CNPJ/CPF", value=get_value(cliente_data, "CNPJ/CPF"))
-                            novo_contato = st.text_input("Contato", value=get_value(cliente_data, "Contato"))
-                            novo_n_cliente = st.text_input("Nº Cliente", value=get_value(cliente_data, "Nº Cliente"))
-                        
-                        submitted = st.form_submit_button("Salvar Alterações")
-                        
-                        if submitted:
-                            try:
-                                # Encontrar índice da linha
-                                row_index = df_pagina1[df_pagina1["CLIENTES"] == cliente_ajuste].index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
-                                
-                                # Preparar dados para atualização (usando os nomes exatos das colunas)
-                                dados_atualizados = {
-                                    "CLIENTES": novo_cliente,
-                                    "NOVO CONSULTOR": novo_consultor,
-                                    "Revenda": nova_revenda,
-                                    "PSSR": novo_pssr,
-                                    "CNPJ/CPF": novo_cnpj,
-                                    "Contato": novo_contato,
-                                    "Nº Cliente": novo_n_cliente
-                                }
-                                
-                                # Atualizar na planilha
-                                if update_sheet_data(client, SPREADSHEET_URL, "Página1", row_index, dados_atualizados):
-                                    st.success("Dados atualizados com sucesso!")
-                                    st.cache_data.clear()
-                                else:
-                                    st.error("Erro ao atualizar dados.")
+                        with st.form("form_ajuste"):
+                            st.subheader(f"Editando: {cliente_ajuste}")
+                            
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                novo_cliente = st.text_input("CLIENTES", value=get_value(cliente_data_row, "CLIENTES"))
+                                novo_consultor = st.text_input("NOVO CONSULTOR", value=get_value(cliente_data_row, "NOVO CONSULTOR"))
+                                nova_revenda = st.text_input("Revenda", value=get_value(cliente_data_row, "Revenda"))
+                            
+                            with col2:
+                                novo_pssr = st.text_input("PSSR", value=get_value(cliente_data_row, "PSSR"))
+                                novo_cnpj = st.text_input("CNPJ/CPF", value=get_value(cliente_data_row, "CNPJ/CPF"))
+                                novo_contato = st.text_input("Contato", value=get_value(cliente_data_row, "Contato"))
+                                novo_n_cliente = st.text_input("Nº Cliente", value=get_value(cliente_data_row, "Nº Cliente"))
+                            
+                            submitted = st.form_submit_button("Salvar Alterações")
+                            
+                            if submitted:
+                                try:
+                                    # Encontrar índice da linha
+                                    row_index = cliente_data.index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
                                     
-                            except Exception as e:
-                                st.error(f"Erro ao atualizar: {e}")
+                                    # Preparar dados para atualização (usando os nomes exatos das colunas)
+                                    dados_atualizados = {
+                                        "CLIENTES": novo_cliente,
+                                        "NOVO CONSULTOR": novo_consultor,
+                                        "Revenda": nova_revenda,
+                                        "PSSR": novo_pssr,
+                                        "CNPJ/CPF": novo_cnpj,
+                                        "Contato": novo_contato,
+                                        "Nº Cliente": novo_n_cliente
+                                    }
+                                    
+                                    # Atualizar na planilha
+                                    if update_sheet_data(client, SPREADSHEET_URL, "Página1", row_index, dados_atualizados):
+                                        st.success("Dados atualizados com sucesso!")
+                                        st.cache_data.clear()
+                                    else:
+                                        st.error("Erro ao atualizar dados.")
+                                        
+                                except Exception as e:
+                                    st.error(f"Erro ao atualizar: {e}")
+                    else:
+                        st.warning("Cliente não encontrado!")
                 
             except Exception as e:
                 st.error(f"Erro ao carregar dados: {e}")
@@ -444,7 +451,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.4.3 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.4.4 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         </div>
         """,
         unsafe_allow_html=True
