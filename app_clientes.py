@@ -221,7 +221,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                <strong style'color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
@@ -290,9 +290,13 @@ def main():
                             n_cliente_value = get_value(row, "Nº Cliente", "")
                             maquinas_cliente["Nº CLIENTE"] = n_cliente_value
                             
-                            # Reordenar colunas: N°, Nº CLIENTE, depois as demais
-                            cols_ordenadas = ["N°", "Nº CLIENTE"] + [col for col in maquinas_cliente.columns if col not in ["N°", "Nº CLIENTE", "CLIENTES"]]
+                            # Reordenar colunas: N°, Nº CLIENTE, CLIENTES, depois as demais
+                            cols_ordenadas = ["N°", "Nº CLIENTE", "CLIENTES"] + [col for col in maquinas_cliente.columns if col not in ["N°", "Nº CLIENTE", "CLIENTES"]]
                             maquinas_cliente = maquinas_cliente[cols_ordenadas]
+
+                            # Remover colunas vazias ou sem nome
+                            maquinas_cliente = maquinas_cliente.loc[:, ~maquinas_cliente.columns.str.contains('^Unnamed', na=False)]
+                            maquinas_cliente = maquinas_cliente.loc[:, maquinas_cliente.columns != '']
 
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
@@ -451,7 +455,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.4.4 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.4.5 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         </div>
         """,
         unsafe_allow_html=True
