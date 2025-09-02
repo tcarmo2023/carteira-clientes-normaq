@@ -56,8 +56,18 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     if not records:
         return None
     df = pd.DataFrame(records).dropna(how="all")
-    df.columns = [str(c).strip().upper() for c in df.columns]
+    # Manter os nomes originais das colunas
+    df.columns = [str(c).strip() for c in df.columns]
     return df
+
+# ——————————————————————————————
+#  FUNÇÃO PARA OBTER CABEÇALHOS EXATOS
+# ——————————————————————————————
+def get_exact_headers(client, spreadsheet_url, sheet_name):
+    spreadsheet = client.open_by_url(spreadsheet_url)
+    worksheet = spreadsheet.worksheet(sheet_name)
+    headers = worksheet.row_values(1)
+    return [str(header).strip() for header in headers]
 
 # ——————————————————————————————
 #  FUNÇÃO PARA SALVAR DADOS NA PLANILHA
@@ -67,14 +77,19 @@ def save_to_sheet(client, spreadsheet_url, sheet_name, data):
     worksheet = spreadsheet.worksheet(sheet_name)
     
     # Obter cabeçalhos existentes
-    headers = worksheet.row_values(1)
+    headers = get_exact_headers(client, spreadsheet_url, sheet_name)
     
     # Preparar dados para inserção
     row_data = []
     for header in headers:
-        if header.upper() in data:
-            row_data.append(data[header.upper()])
-        else:
+        # Encontrar correspondência case-insensitive
+        found = False
+        for data_key in data.keys():
+            if data_key.upper() == header.upper():
+                row_data.append(data[data_key])
+                found = True
+                break
+        if not found:
             row_data.append("")
     
     # Adicionar nova linha
@@ -88,17 +103,22 @@ def update_sheet_data(client, spreadsheet_url, sheet_name, row_index, data):
     spreadsheet = client.open_by_url(spreadsheet_url)
     worksheet = spreadsheet.worksheet(sheet_name)
     
-    # Obter cabeçalhos
-    headers = worksheet.row_values(1)
+    # Obter cabeçalhos exatos
+    headers = get_exact_headers(client, spreadsheet_url, sheet_name)
     
     # Preparar dados para atualização
-    for col_name, value in data.items():
-        # Verificar se o cabeçalho existe na planilha
-        if col_name.upper() in headers:
-            col_index = headers.index(col_name.upper()) + 1
+    for data_key, value in data.items():
+        # Encontrar correspondência case-insensitive
+        col_index = None
+        for i, header in enumerate(headers):
+            if data_key.upper() == header.upper():
+                col_index = i + 1
+                break
+        
+        if col_index:
             worksheet.update_cell(row_index, col_index, value)
         else:
-            st.warning(f"Coluna '{col_name}' não encontrada na planilha.")
+            st.warning(f"Coluna '{data_key}' não encontrada na planilha.")
     
     return True
 
@@ -175,7 +195,7 @@ def main():
                 row = cliente_data.iloc[0]
 
                 # Obter e formatar número de contato para WhatsApp
-                contato_value = get_value(row, "CONTATO")
+                contato_value = get_value(row, "Contato")
                 telefone_formatado = formatar_telefone(contato_value)
                 whatsapp_link = f"https://wa.me/{telefone_formatado}" if telefone_formatado and telefone_formatado != "Não informado" else "#"
 
@@ -200,7 +220,7 @@ def main():
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
-                                <span style='font-size:18px; font-weight:600;'>{get_value(row, "REVENDA")}</span>
+                                <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
@@ -238,7 +258,7 @@ def main():
                                 <div style='
                                     background: #f8f9fa;
                                     padding: 10px 15px;
-                                    borderRadius: 10px;
+                                    border-radius: 10px;
                                     margin-bottom: 10px;
                                     font-size: 16px;
                                     color: #333;
@@ -265,7 +285,7 @@ def main():
                             maquinas_cliente["N°"] = range(1, len(maquinas_cliente) + 1)
                             
                             # Adicionar coluna Nº CLIENTE da Página1
-                            n_cliente_value = get_value(row, "Nº CLIENTE", "")
+                            n_cliente_value = get_value(row, "Nº Cliente", "")
                             maquinas_cliente["Nº CLIENTE"] = n_cliente_value
                             
                             # Reordenar colunas: N°, Nº CLIENTE, depois as demais
@@ -310,15 +330,15 @@ def main():
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    cliente = st.text_input("CLIENTE*")
+                    cliente = st.text_input("CLIENTES*")
                     consultor = st.text_input("NOVO CONSULTOR*")
-                    revenda = st.text_input("REVENDA*")
+                    revenda = st.text_input("Revenda*")
                 
                 with col2:
                     pssr = st.text_input("PSSR*")
                     cnpj_cpf = st.text_input("CNPJ/CPF*")
-                    contato = st.text_input("CONTATO*")
-                    n_cliente = st.text_input("Nº CLIENTE*")
+                    contato = st.text_input("Contato*")
+                    n_cliente = st.text_input("Nº Cliente*")
                 
                 submitted = st.form_submit_button("Cadastrar Cliente")
                 
@@ -327,15 +347,15 @@ def main():
                         st.error("Todos os campos marcados com * são obrigatórios!")
                     else:
                         try:
-                            # Preparar dados
+                            # Preparar dados com os nomes exatos das colunas
                             novo_cliente = {
                                 "CLIENTES": cliente,
                                 "NOVO CONSULTOR": consultor,
-                                "REVENDA": revenda,
+                                "Revenda": revenda,
                                 "PSSR": pssr,
                                 "CNPJ/CPF": cnpj_cpf,
-                                "CONTATO": contato,
-                                "Nº CLIENTE": n_cliente
+                                "Contato": contato,
+                                "Nº Cliente": n_cliente
                             }
                             
                             # Salvar na planilha
@@ -375,15 +395,15 @@ def main():
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            novo_cliente = st.text_input("CLIENTE", value=get_value(cliente_data, "CLIENTES"))
+                            novo_cliente = st.text_input("CLIENTES", value=get_value(cliente_data, "CLIENTES"))
                             novo_consultor = st.text_input("NOVO CONSULTOR", value=get_value(cliente_data, "NOVO CONSULTOR"))
-                            nova_revenda = st.text_input("REVENDA", value=get_value(cliente_data, "REVENDA"))
+                            nova_revenda = st.text_input("Revenda", value=get_value(cliente_data, "Revenda"))
                         
                         with col2:
                             novo_pssr = st.text_input("PSSR", value=get_value(cliente_data, "PSSR"))
                             novo_cnpj = st.text_input("CNPJ/CPF", value=get_value(cliente_data, "CNPJ/CPF"))
-                            novo_contato = st.text_input("CONTATO", value=get_value(cliente_data, "CONTATO"))
-                            novo_n_cliente = st.text_input("Nº CLIENTE", value=get_value(cliente_data, "Nº CLIENTE"))
+                            novo_contato = st.text_input("Contato", value=get_value(cliente_data, "Contato"))
+                            novo_n_cliente = st.text_input("Nº Cliente", value=get_value(cliente_data, "Nº Cliente"))
                         
                         submitted = st.form_submit_button("Salvar Alterações")
                         
@@ -392,15 +412,15 @@ def main():
                                 # Encontrar índice da linha
                                 row_index = df_pagina1[df_pagina1["CLIENTES"] == cliente_ajuste].index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
                                 
-                                # Preparar dados para atualização (usando os nomes exatos das colunas da planilha)
+                                # Preparar dados para atualização (usando os nomes exatos das colunas)
                                 dados_atualizados = {
                                     "CLIENTES": novo_cliente,
                                     "NOVO CONSULTOR": novo_consultor,
-                                    "REVENDA": nova_revenda,
+                                    "Revenda": nova_revenda,
                                     "PSSR": novo_pssr,
                                     "CNPJ/CPF": novo_cnpj,
-                                    "CONTATO": novo_contato,
-                                    "Nº CLIENTE": novo_n_cliente
+                                    "Contato": novo_contato,
+                                    "Nº Cliente": novo_n_cliente
                                 }
                                 
                                 # Atualizar na planilha
@@ -424,7 +444,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.4.2 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.4.3 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         </div>
         """,
         unsafe_allow_html=True
