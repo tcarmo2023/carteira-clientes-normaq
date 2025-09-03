@@ -221,7 +221,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style'color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
@@ -286,17 +286,26 @@ def main():
                             maquinas_cliente = maquinas_cliente.copy()
                             maquinas_cliente["N°"] = range(1, len(maquinas_cliente) + 1)
                             
-                            # Adicionar coluna Nº CLIENTE da Página1
+                            # Adicionar coluna Nº CLIENTE da Página1 e remover vírgulas
                             n_cliente_value = get_value(row, "Nº Cliente", "")
-                            maquinas_cliente["Nº CLIENTE"] = n_cliente_value
+                            # Remover vírgulas e caracteres não numéricos, mantendo apenas números
+                            n_cliente_limpo = re.sub(r'[^\d]', '', str(n_cliente_value))
+                            maquinas_cliente["Nº CLIENTE"] = n_cliente_limpo
                             
                             # Reordenar colunas: N°, Nº CLIENTE, CLIENTES, depois as demais
                             cols_ordenadas = ["N°", "Nº CLIENTE", "CLIENTES"] + [col for col in maquinas_cliente.columns if col not in ["N°", "Nº CLIENTE", "CLIENTES"]]
                             maquinas_cliente = maquinas_cliente[cols_ordenadas]
 
-                            # Remover colunas vazias ou sem nome
+                            # Remover colunas vazias ou sem nome (incluindo a primeira coluna sem nome)
                             maquinas_cliente = maquinas_cliente.loc[:, ~maquinas_cliente.columns.str.contains('^Unnamed', na=False)]
                             maquinas_cliente = maquinas_cliente.loc[:, maquinas_cliente.columns != '']
+                            # Remover a primeira coluna se estiver vazia (índice antigo)
+                            if maquinas_cliente.iloc[:, 0].name == 'N°':
+                                # Já está correto, não fazer nada
+                                pass
+                            else:
+                                # Remover a primeira coluna se não for a coluna N°
+                                maquinas_cliente = maquinas_cliente.iloc[:, 1:]
 
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
@@ -420,8 +429,7 @@ def main():
                                 try:
                                     # Encontrar índice da linha
                                     row_index = cliente_data.index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
-                                    
-                                    # Preparar dados para atualização (usando os nomes exatos das colunas)
+                                                                    # Preparar dados para atualização (usando os nomes exatos das colunas)
                                     dados_atualizados = {
                                         "CLIENTES": novo_cliente,
                                         "NOVO CONSULTOR": novo_consultor,
@@ -455,7 +463,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.4.5 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.4.6 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         </div>
         """,
         unsafe_allow_html=True
