@@ -128,8 +128,8 @@ def verificar_login():
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
         
-        # Abas para Login e Cadastro
-        tab_login, tab_cadastro, tab_info, tab_ajuste_senha = st.tabs(["Login", "Cadastrar Usuário", "Informações", "Ajustes de Senha"])
+        # Abas para Login e Cadastro - ORDEM AJUSTADA
+        tab_login, tab_cadastro, tab_ajuste_senha, tab_info = st.tabs(["Login", "Cadastrar Usuário", "Ajustes de Senha", "Informações"])
         
         with tab_login:
             col1, col2, col3 = st.columns([1, 2, 1])
@@ -306,7 +306,7 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     records = worksheet.get_all_records()
     if not records:
         return None
-    df = pd.DataFrame(records).dropna(how="all")
+    df = pd.DataFrame(records).drop(how="all")
     # Manter os nomes originais das colunas
     df.columns = [str(c).strip() for c in df.columns]
     return df
@@ -439,6 +439,29 @@ def inject_protection_css():
         width: 0 !important;
         opacity: 0 !important;
     }
+    
+    /* Restaurar fontes e estilos */
+    .stApp {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 600;
+    }
+    
+    .stButton>button {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 500;
+    }
+    
+    .stTextInput>div>div>input {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .stSelectbox>div>div>select {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
     </style>
 
     <script>
@@ -558,7 +581,7 @@ def main():
                 cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_selecionado]
             else:
                 # Converter CNPJ/CPF para string para evitar erro de comparação
-                cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CN极J/CPF"].dropna().unique()])
+                cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CNPJ/CPF"].dropna().unique()])
                 cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis, key="cnpj_select")
                 cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"].astype(str) == cnpj_cpf_selecionado]
                 cliente_selecionado = get_value(cliente_data.iloc[0], "CLIENTES") if not cliente_data.empty else ""
@@ -577,13 +600,13 @@ def main():
                     st.markdown(
                         f"""
                         <div style='
-                            background: linear-gradient(135deg, #1e1e1e 极%, #2d2d2d 100%);
+                            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
                             border-radius: 12px;
                             padding: 20px;
                             margin: 15px 0;
                             box-shadow: 0 6px 16px rgba(0,0,0,0.2);
                             color: white;
-                            border-left: 4极 solid #4CAF50;
+                            border-left: 4px solid #4CAF50;
                         '>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#4CAF50; font-size:14px;'>👤 CONSULTOR:</strong><br>
@@ -600,7 +623,7 @@ def main():
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "PSSR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <极 style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>
                                     <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
@@ -615,7 +638,7 @@ def main():
 
                 with col2:
                     if df_pagina2 is not None and not df_pagina2.empty:
-                        maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_se极cionado]
+                        maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
 
                         if not maquinas_cliente.empty:
                             qtd_maquinas = len(maquinas_cliente)
@@ -718,7 +741,7 @@ def main():
                 submitted = st.form_submit_button("Cadastrar Cliente")
                 
                 if submitted:
-                    if not all([cliente, consultor, revenda, p极sr, cnpj_cpf, contato, n_cliente]):
+                    if not all([cliente, consultor, revenda, pssr, cnpj_cpf, contato, n_cliente]):
                         st.error("Todos os campos marcados com * são obrigatórios!")
                     else:
                         try:
