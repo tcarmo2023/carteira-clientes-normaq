@@ -58,18 +58,25 @@ def verificar_email():
         st.session_state.email_verificado = False
     
     if not st.session_state.email_verificado:
-        with st.sidebar:
-            st.header("🔐 Acesso Restrito")
-            email = st.text_input("Digite seu email corporativo:")
+        st.title("🔍 Carteira de Clientes NORMAQ JCB")
+        st.markdown("---")
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.subheader("🔐 Acesso Restrito")
+            email = st.text_input("Digite seu email corporativo:", placeholder="seu.email@normaq.com.br")
             
-            if st.button("Acessar"):
+            if st.button("Acessar Sistema", type="primary", use_container_width=True):
                 if email.lower() in EMAILS_AUTORIZADOS:
                     st.session_state.email_verificado = True
+                    st.session_state.email_usuario = email.lower()
                     st.success("Acesso permitido!")
                     st.rerun()
                 else:
                     st.error("Email não autorizado. Entre em contato com o administrador.")
         
+        st.markdown("---")
+        st.info("📧 Apenas emails corporativos autorizados têm acesso a este sistema")
         st.stop()
 
 # ——————————————————————————————
@@ -195,6 +202,14 @@ def main():
     # Verificar email antes de mostrar qualquer conteúdo
     verificar_email()
     
+    # Mostrar email do usuário logado
+    st.sidebar.success(f"👤 Logado como: {st.session_state.email_usuario}")
+    
+    if st.sidebar.button("🚪 Sair"):
+        st.session_state.email_verificado = False
+        st.session_state.email_usuario = None
+        st.rerun()
+
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
 
     # Adicionar abas
@@ -261,7 +276,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                <strong style'color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
@@ -354,6 +369,15 @@ def main():
                             st.markdown(
                                 """
                                 <style>
+                                .dataframe-container {
+                                    user-select: none;
+                                    -webkit-user-select: none;
+                                    -moz-user-select: none;
+                                    -ms-user-select: none;
+                                }
+                                .dataframe-container * {
+                                    pointer-events: none;
+                                }
                                 table td, table th {
                                     text-align: center !important;
                                 }
@@ -362,42 +386,15 @@ def main():
                                 unsafe_allow_html=True
                             )
 
-                            # Desabilitar download e cópia dos dados
+                            # Exibir dataframe sem opções de download
+                            st.markdown("<div class='dataframe-container'>", unsafe_allow_html=True)
                             st.dataframe(
                                 maquinas_cliente.reset_index(drop=True),
                                 use_container_width=True,
-                                hide_index=True,
-                                column_config={
-                                    "N°": st.column_config.NumberColumn(
-                                        "N°",
-                                        width="small"
-                                    ),
-                                    "Nº CLIENTE": st.column_config.TextColumn(
-                                        "Nº CLIENTE",
-                                        width="medium"
-                                    )
-                                },
-                                # Desabilitar funcionalidades de download e seleção
-                                disabled=True
+                                hide_index=True
                             )
+                            st.markdown("</div>", unsafe_allow_html=True)
                             
-                            # Adicionar CSS para desabilitar seleção de texto
-                            st.markdown(
-                                """
-                                <style>
-                                .stDataFrame {
-                                    user-select: none;
-                                    -webkit-user-select: none;
-                                    -moz-user-select: none;
-                                    -ms-user-select: none;
-                                }
-                                .stDataFrame * {
-                                    pointer-events: none;
-                                }
-                                </style>
-                                """,
-                                unsafe_allow_html=True
-                            )
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
                             st.warning("📭 Nenhuma máquina encontrada para este cliente")
@@ -434,7 +431,7 @@ def main():
                 
                 if submitted:
                     if not all([cliente, consultor, revenda, pssr, cnpj_cpf, contato, n_cliente]):
-                        st.error("Todos os campos marcados com * são obrigatórios!")
+                        st.error("Todos os campos marcados avec * são obrigatórios!")
                     else:
                         try:
                             # Preparar dados com os nomes exatos das colunas
@@ -539,6 +536,8 @@ def main():
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
         Versão 1.4.6 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        <br>
+        Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 (81) 99514-3900
         </div>
         """,
         unsafe_allow_html=True
