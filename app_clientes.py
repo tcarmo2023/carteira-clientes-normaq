@@ -50,7 +50,8 @@ EMAILS_AUTORIZADOS = {
     "thiago.carmo@normaq.com.br",
     "antonio.gustavo@normaq.com.br",
     "raony.lins@normaq.com.br",
-    "graziela.galdino@normaq.com.br"
+    "graziela.galdino@normaq.com.br",
+    "tiago.lima@normaq.com.br"
 }
 
 # ——————————————————————————————
@@ -617,3 +618,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
