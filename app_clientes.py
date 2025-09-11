@@ -9,6 +9,7 @@ import re
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
 # ——————————————————————————————
+# Verifica se é uma requisição do UptimeRobot antes de qualquer coisa
 if 'QUERY_STRING' in os.environ and 'ping=1' in os.environ['QUERY_STRING']:
     print("ok")
     exit(0)
@@ -25,6 +26,7 @@ st.set_page_config(
 # ——————————————————————————————
 #  VERIFICAÇÃO ALTERNATIVA
 # ——————————————————————————————
+# Verificação adicional para garantir
 try:
     params = st.query_params
     if params.get("ping") == "1":
@@ -102,6 +104,7 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     if not records:
         return None
     df = pd.DataFrame(records).dropna(how="all")
+    # Manter os nomes originais das colunas
     df.columns = [str(c).strip() for c in df.columns]
     return df
 
@@ -120,9 +123,14 @@ def get_exact_headers(client, spreadsheet_url, sheet_name):
 def save_to_sheet(client, spreadsheet_url, sheet_name, data):
     spreadsheet = client.open_by_url(spreadsheet_url)
     worksheet = spreadsheet.worksheet(sheet_name)
+    
+    # Obter cabeçalhos existentes
     headers = get_exact_headers(client, spreadsheet_url, sheet_name)
+    
+    # Preparar dados para inserção
     row_data = []
     for header in headers:
+        # Encontrar correspondência case-insensitive
         found = False
         for data_key in data.keys():
             if data_key.upper() == header.upper():
@@ -131,6 +139,8 @@ def save_to_sheet(client, spreadsheet_url, sheet_name, data):
                 break
         if not found:
             row_data.append("")
+    
+    # Adicionar nova linha
     worksheet.append_row(row_data)
     return True
 
@@ -140,17 +150,24 @@ def save_to_sheet(client, spreadsheet_url, sheet_name, data):
 def update_sheet_data(client, spreadsheet_url, sheet_name, row_index, data):
     spreadsheet = client.open_by_url(spreadsheet_url)
     worksheet = spreadsheet.worksheet(sheet_name)
+    
+    # Obter cabeçalhos exatos
     headers = get_exact_headers(client, spreadsheet_url, sheet_name)
+    
+    # Preparar dados para atualização
     for data_key, value in data.items():
+        # Encontrar correspondência case-insensitive
         col_index = None
         for i, header in enumerate(headers):
             if data_key.upper() == header.upper():
                 col_index = i + 1
                 break
+        
         if col_index:
             worksheet.update_cell(row_index, col_index, value)
         else:
             st.warning(f"Coluna '{data_key}' não encontrada na planilha.")
+    
     return True
 
 # ——————————————————————————————
@@ -168,28 +185,42 @@ def get_value(row, col_name, default="Não informado"):
 def formatar_telefone(telefone):
     if not telefone or telefone == "Não informado":
         return telefone
+    
+    # Remover caracteres não numéricos
     numeros = re.sub(r'\D', '', str(telefone))
+    
+    # Formatar número para WhatsApp (55DDDNUMERO)
     if numeros.startswith('55') and len(numeros) >= 12:
         return numeros
-    elif len(numeros) == 11:
+    elif len(numeros) == 11:  # Com DDD (11 dígitos)
         return '55' + numeros
-    elif len(numeros) == 10:
+    elif len(numeros) == 10:  # Com DDD (10 dígitos)
         return '55' + numeros
     else:
-        return numeros
+        return numeros  # Retorna como está se não conseguir formatar
 
 # ——————————————————————————————
-#  CSS PARA BLOQUEAR SELEÇÃO DE TEXTO
+#  CSS + JS PARA BLOQUEAR SELEÇÃO DE TEXTO E AÇÕES DE COPIAR
 # ——————————————————————————————
 def inject_protection_css():
     st.markdown("""
     <style>
-    .stDataFrame {
+    /* Bloquear seleção de texto nas tabelas e elementos gerados pelo Streamlit */
+    .stDataFrame, .streamlit-expanderHeader, .stMarkdown, .stTable, .stAceContent {
         user-select: none !important;
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
         -ms-user-select: none !important;
     }
+
+    /* Também bloqueia seleção em elementos de tabela HTML */
+    table {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+    }
+
+    /* Permitir seleção apenas em campos de input */
     input, textarea {
         user-select: text !important;
         -webkit-user-select: text !important;
@@ -197,15 +228,45 @@ def inject_protection_css():
         -ms-user-select: text !important;
     }
     </style>
+
+    <script>
+    // Bloquear clique direito
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // Bloquear Ctrl+C, Ctrl+S, PrintScreen e Ctrl+Shift+C (inspecionar)
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 's' || e.key === 'S' || e.key === 'C' && e.shiftKey)) {
+            e.preventDefault();
+        }
+        if (e.key === 'PrintScreen') {
+            e.preventDefault();
+        }
+        // bloquear Ctrl+Shift+I / Ctrl+Shift+C (DevTools)
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c')) {
+            e.preventDefault();
+        }
+    });
+
+    // Tenta limpar seleção caso ocorra
+    document.addEventListener('selectionchange', function () {
+        try { window.getSelection().removeAllRanges(); } catch(e) {}
+    });
+    </script>
     """, unsafe_allow_html=True)
 
 # ——————————————————————————————
 #  INTERFACE PRINCIPAL
 # ——————————————————————————————
 def main():
+    # Verificar email antes de mostrar qualquer conteúdo
     verificar_email()
+    
+    # Injetar CSS + JS de proteção
     inject_protection_css()
+    
+    # Mostrar email do usuário logado
     st.sidebar.success(f"👤 Logado como: {st.session_state.email_usuario}")
+    
     if st.sidebar.button("🚪 Sair"):
         st.session_state.email_verificado = False
         st.session_state.email_usuario = None
@@ -213,12 +274,14 @@ def main():
 
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
 
+    # Adicionar abas
     tab1, tab2, tab3 = st.tabs(["Consulta", "Cadastro de Cliente", "Ajuste de Cliente"])
     
     with tab1:
         try:
             creds = get_google_creds()
             client = gspread.authorize(creds)
+
             SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
 
             @st.cache_data(ttl=3600)
@@ -232,13 +295,16 @@ def main():
                 st.warning("Nenhum dado disponível na Página1")
                 return
 
+            # Adicionar opção de consulta por CNPJ/CPF
             consulta_por = st.radio("Consultar por:", ["Cliente", "CNPJ/CPF"], horizontal=True)
             
             if consulta_por == "Cliente":
+                # Converter para string para evitar erro de comparação
                 clientes_disponiveis = sorted([str(cliente) for cliente in df_pagina1["CLIENTES"].dropna().unique()])
                 cliente_selecionado = st.selectbox("Selecione um cliente:", clientes_disponiveis, key="cliente_select")
                 cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_selecionado]
             else:
+                # Converter CNPJ/CPF para string para evitar erro de comparação
                 cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CNPJ/CPF"].dropna().unique()])
                 cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis, key="cnpj_select")
                 cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"].astype(str) == cnpj_cpf_selecionado]
@@ -246,25 +312,48 @@ def main():
 
             if not cliente_data.empty:
                 row = cliente_data.iloc[0]
+
+                # Obter e formatar número de contato para WhatsApp
                 contato_value = get_value(row, "Contato")
                 telefone_formatado = formatar_telefone(contato_value)
                 whatsapp_link = f"https://wa.me/{telefone_formatado}" if telefone_formatado and telefone_formatado != "Não informado" else "#"
 
+                # CARD DE INFORMAÇÕES
                 col1, col2 = st.columns([1, 2])
                 with col1:
                     st.markdown(
                         f"""
-                        <div style='background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%); border-radius: 12px; padding: 20px; margin: 15px 0; box-shadow: 0 6px 16px rgba(0,0,0,0.2); color: white; border-left: 4px solid #4CAF50;'>
-                            <p><strong style='color:#4CAF50;'>👤 CONSULTOR:</strong><br>{get_value(row, "NOVO CONSULTOR")}</p>
-                            <hr>
-                            <p><strong style='color:#2196F3;'>🏢 REVENDA:</strong><br>{get_value(row, "Revenda")}</p>
-                            <hr>
-                            <p><strong style='color:#FF9800;'>🔧 PSSR:</strong><br>{get_value(row, "PSSR")}</p>
-                            <hr>
-                            <p><strong style='color:#9C27B0;'>📞 CONTATO:</strong><br>
-                                <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
-                                    {contato_value} 💬
-                                </a>
+                        <div style='
+                            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+                            border-radius: 12px;
+                            padding: 20px;
+                            margin: 15px 0;
+                            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+                            color: white;
+                            border-left: 4px solid #4CAF50;
+                        '>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                                <strong style='color:#4CAF50; font-size:14px;'>👤 CONSULTOR:</strong><br>
+                                <span style='font-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
+                            </p>
+                            <hr style='border: 0.5px solid #444; margin: 15px 0;'>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
+                            </p>
+                            <hr style='border: 0.5px solid #444; margin: 15px 0;'>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                                <strong style='color:#FF9800; font-size:14px;'>🔧 PSSR:</strong><br>
+                                <span style='font-size:18px; font-weight:600;'>{get_value(row, "PSSR")}</span>
+                            </p>
+                            <hr style='border: 0.5px solid #444; margin: 15px 0;'>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                                <strong style'color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
+                                <span style='font-size:18px; font-weight:600;'>
+                                    <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
+                                        {contato_value} 💬
+                                    </a>
+                                </span>
                             </p>
                         </div>
                         """,
@@ -277,35 +366,81 @@ def main():
 
                         if not maquinas_cliente.empty:
                             qtd_maquinas = len(maquinas_cliente)
+                            
+                            # Calcular total por categoria
                             categorias_count = maquinas_cliente["CATEGORIA"].value_counts()
                             categorias_str = " | ".join([f"{cat} - {count:02d}" for cat, count in categorias_count.items()])
 
+                            # Mensagem com destaque
                             st.markdown(
                                 f"""
-                                <div style='background: #f8f9fa; padding: 10px; border-radius: 10px; margin-bottom: 10px; font-size: 16px; color: #333; border: 1px solid #ddd;'>
+                                <div style='
+                                    background: #f8f9fa;
+                                    padding: 10px 15px;
+                                    border-radius: 10px;
+                                    margin-bottom: 10px;
+                                    font-size: 16px;
+                                    color: #333;
+                                    border: 1px solid #ddd;
+                                '>
                                 💡 Selecione um cliente para visualizar as informações completas
-                                <span style="font-weight:bold; font-size:18px; color:#4CAF50;"> - Quantidade de Máquinas: {qtd_maquinas}</span>
+                                <span style="font-weight:bold; font-size:18px; color:#4CAF50;">
+                                    - Quantidade de Máquinas: {qtd_maquinas}
+                                </span>
                                 <br>
-                                <span style="font-weight:bold; font-size:16px; color:#2196F3;">Categorias: {categorias_str}</span>
+                                <span style="font-weight:bold; font-size:16px; color:#2196F3;">
+                                    Categorias: {categorias_str}
+                                </span>
                                 </div>
                                 """,
                                 unsafe_allow_html=True
                             )
 
+                            # Ajuste da coluna SERIE para remover pontos/virgulas
+                            maquinas_cliente["SERIE"] = maquinas_cliente["SERIE"].astype(str).str.replace(r"[.,]", "", regex=True)
+
+                            # Adicionar número sequencial (começando em 1)
                             maquinas_cliente = maquinas_cliente.copy()
                             maquinas_cliente["N°"] = range(1, len(maquinas_cliente) + 1)
+                            
+                            # Adicionar coluna Nº CLIENTE da Página1 e remover vírgulas
                             n_cliente_value = get_value(row, "Nº Cliente", "")
+                            # Remover vírgulas e caracteres não numéricos, mantendo apenas números
                             n_cliente_limpo = re.sub(r'[^\d]', '', str(n_cliente_value))
                             maquinas_cliente["Nº CLIENTE"] = n_cliente_limpo
+                            
+                            # Reordenar colunas: N°, Nº CLIENTE, CLIENTES, depois as demais
                             cols_ordenadas = ["N°", "Nº CLIENTE", "CLIENTES"] + [col for col in maquinas_cliente.columns if col not in ["N°", "Nº CLIENTE", "CLIENTES"]]
                             maquinas_cliente = maquinas_cliente[cols_ordenadas]
+
+                            # Remover colunas vazias ou sem nome (incluindo a primeira coluna sem nome)
                             maquinas_cliente = maquinas_cliente.loc[:, ~maquinas_cliente.columns.str.contains('^Unnamed', na=False)]
                             maquinas_cliente = maquinas_cliente.loc[:, maquinas_cliente.columns != '']
+                            # Remover a primeira coluna se estiver vazia (índice antigo)
+                            if maquinas_cliente.iloc[:, 0].name == 'N°':
+                                # Já está correto, não fazer nada
+                                pass
+                            else:
+                                # Remover a primeira coluna se não for a coluna N°
+                                maquinas_cliente = maquinas_cliente.iloc[:, 1:]
+
+                            # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
 
-                            st.dataframe(maquinas_cliente.reset_index(drop=True), use_container_width=True, hide_index=True)
+                            # Exibir tabela usando data_editor em modo somente leitura (sem menu de download)
+                            try:
+                                st.data_editor(
+                                    maquinas_cliente.reset_index(drop=True),
+                                    use_container_width=True,
+                                    disabled=True
+                                )
+                            except Exception:
+                                # Caso a versão do Streamlit do servidor não suporte data_editor,
+                                # como fallback exibe st.table (também sem menu de download)
+                                st.table(maquinas_cliente.reset_index(drop=True))
 
                         else:
+                            st.info("💡 Selecione um cliente para visualizar as informações completas")
                             st.warning("📭 Nenhuma máquina encontrada para este cliente")
                     else:
                         st.info("💡 Selecione um cliente para visualizar as informações completas")
@@ -315,9 +450,130 @@ def main():
         except Exception as e:
             st.error(f"Erro ao carregar a aplicação: {e}")
 
-    # (tab2 e tab3 seguem iguais ao seu código original...)
-    # Mantive cadastro e ajuste de cliente
+    with tab2:
+        st.header("Cadastro de Novo Cliente")
+        
+        # Verificar senha
+        senha = st.text_input("Digite a senha para acesso:", type="password")
+        
+        if senha == "NMQ@2025":
+            with st.form("form_cadastro"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    cliente = st.text_input("CLIENTES*")
+                    consultor = st.text_input("NOVO CONSULTOR*")
+                    revenda = st.text_input("Revenda*")
+                
+                with col2:
+                    pssr = st.text_input("PSSR*")
+                    cnpj_cpf = st.text_input("CNPJ/CPF*")
+                    contato = st.text_input("Contato*")
+                    n_cliente = st.text_input("Nº Cliente*")
+                
+                submitted = st.form_submit_button("Cadastrar Cliente")
+                
+                if submitted:
+                    if not all([cliente, consultor, revenda, pssr, cnpj_cpf, contato, n_cliente]):
+                        st.error("Todos os campos marcados com * são obrigatórios!")
+                    else:
+                        try:
+                            # Preparar dados com os nomes exatos das colunas
+                            novo_cliente = {
+                                "CLIENTES": cliente,
+                                "NOVO CONSULTOR": consultor,
+                                "Revenda": revenda,
+                                "PSSR": pssr,
+                                "CNPJ/CPF": cnpj_cpf,
+                                "Contato": contato,
+                                "Nº Cliente": n_cliente
+                            }
+                            
+                            # Salvar na planilha
+                            if save_to_sheet(client, SPREADSHEET_URL, "Página1", novo_cliente):
+                                st.success("Cliente cadastrado com sucesso!")
+                                st.cache_data.clear()
+                            else:
+                                st.error("Erro ao cadastrar cliente.")
+                                
+                        except Exception as e:
+                            st.error(f"Erro ao cadastrar: {e}")
+        elif senha != "":
+            st.error("Senha incorreta!")
+    
+    with tab3:
+        st.header("Ajuste de Dados do Cliente")
+        
+        # Verificar senha
+        senha = st.text_input("Digite a senha para acesso:", type="password", key="senha_ajuste")
+        
+        if senha == "NMQ@2025":
+            try:
+                # Carregar dados
+                df_pagina1 = get_data("Página1")
+                
+                # Selecionar cliente para ajuste (convertendo para string)
+                opcoes_clientes = sorted([str(cliente) for cliente in df_pagina1["CLIENTES"].dropna().unique()])
+                cliente_ajuste = st.selectbox("Selecione o cliente para ajuste:", opcoes_clientes)
+                
+                if cliente_ajuste:
+                    # Obter dados do cliente selecionado
+                    cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_ajuste]
+                    
+                    if not cliente_data.empty:
+                        cliente_data_row = cliente_data.iloc[0]
+                        
+                        with st.form("form_ajuste"):
+                            st.subheader(f"Editando: {cliente_ajuste}")
+                            
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                novo_cliente = st.text_input("CLIENTES", value=get_value(cliente_data_row, "CLIENTES"))
+                                novo_consultor = st.text_input("NOVO CONSULTOR", value=get_value(cliente_data_row, "NOVO CONSULTOR"))
+                                nova_revenda = st.text_input("Revenda", value=get_value(cliente_data_row, "Revenda"))
+                            
+                            with col2:
+                                novo_pssr = st.text_input("PSSR", value=get_value(cliente_data_row, "PSSR"))
+                                novo_cnpj = st.text_input("CNPJ/CPF", value=get_value(cliente_data_row, "CNPJ/CPF"))
+                                novo_contato = st.text_input("Contato", value=get_value(cliente_data_row, "Contato"))
+                                novo_n_cliente = st.text_input("Nº Cliente", value=get_value(cliente_data_row, "Nº Cliente"))
+                            
+                            submitted = st.form_submit_button("Salvar Alterações")
+                            
+                            if submitted:
+                                try:
+                                    # Encontrar índice da linha
+                                    row_index = cliente_data.index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
+                                                                    # Preparar dados para atualização (usando os nomes exatos das colunas)
+                                    dados_atualizados = {
+                                        "CLIENTES": novo_cliente,
+                                        "NOVO CONSULTOR": novo_consultor,
+                                        "Revenda": nova_revenda,
+                                        "PSSR": novo_pssr,
+                                        "CNPJ/CPF": novo_cnpj,
+                                        "Contato": novo_contato,
+                                        "Nº Cliente": novo_n_cliente
+                                    }
+                                    
+                                    # Atualizar na planilha
+                                    if update_sheet_data(client, SPREADSHEET_URL, "Página1", row_index, dados_atualizados):
+                                        st.success("Dados atualizados com sucesso!")
+                                        st.cache_data.clear()
+                                    else:
+                                        st.error("Erro ao atualizar dados.")
+                                        
+                                except Exception as e:
+                                    st.error(f"Erro ao atualizar: {e}")
+                    else:
+                        st.warning("Cliente não encontrado!")
+                
+            except Exception as e:
+                st.error(f"Erro ao carregar dados: {e}")
+        elif senha != "":
+            st.error("Senha incorreta!")
 
+    # Rodapé
     st.markdown("---")
     st.markdown(
         f"""
@@ -330,6 +586,7 @@ def main():
         """,
         unsafe_allow_html=True
     )
+
 
 if __name__ == "__main__":
     main()
