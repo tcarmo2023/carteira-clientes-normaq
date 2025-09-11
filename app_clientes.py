@@ -60,6 +60,8 @@ EMAILS_AUTORIZADOS = {
 
 # Senha padrão inicial
 SENHA_PADRAO = "NMQ@123"
+# Senha de administrador para cadastros e ajustes
+SENHA_ADMIN = "NMQ@2025"
 
 # ——————————————————————————————
 #  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS
@@ -127,7 +129,7 @@ def verificar_login():
         st.markdown("---")
         
         # Abas para Login e Cadastro
-        tab_login, tab_cadastro, tab_info = st.tabs(["Login", "Cadastrar Usuário", "Informações"])
+        tab_login, tab_cadastro, tab_info, tab_ajuste_senha = st.tabs(["Login", "Cadastrar Usuário", "Informações", "Ajustes de Senha"])
         
         with tab_login:
             col1, col2, col3 = st.columns([1, 2, 1])
@@ -166,29 +168,70 @@ def verificar_login():
         with tab_cadastro:
             st.subheader("Cadastrar Novo Usuário")
             
-            with st.form("form_cadastro_usuario"):
-                email = st.text_input("Email corporativo:", placeholder="seu.email@normaq.com.br")
-                login = st.text_input("Login:", placeholder="seu.login")
-                senha_provisoria = st.text_input("Senha provisória:", type="password", value=SENHA_PADRAO)
-                
-                submitted = st.form_submit_button("Cadastrar Usuário")
-                
-                if submitted:
-                    if not all([email, login, senha_provisoria]):
-                        st.error("Todos os campos são obrigatórios!")
-                    elif not email.endswith("@normaq.com.br"):
-                        st.error("O email deve ser corporativo (@normaq.com.br)")
-                    else:
-                        usuarios = carregar_usuarios()
-                        usuarios[login] = {
-                            "email": email,
-                            "senha_hash": hash_senha(senha_provisoria),
-                            "primeiro_login": True
-                        }
-                        if salvar_usuarios(usuarios):
-                            st.success(f"Usuário {login} cadastrado com sucesso!")
+            # Verificar senha de administrador
+            senha_admin = st.text_input("Senha de administrador:", type="password", key="senha_admin_cadastro")
+            
+            if senha_admin == SENHA_ADMIN:
+                with st.form("form_cadastro_usuario"):
+                    email = st.text_input("Email corporativo:", placeholder="seu.email@normaq.com.br")
+                    login = st.text_input("Login:", placeholder="seu.login")
+                    senha_provisoria = st.text_input("Senha provisória:", type="password", value=SENHA_PADRAO)
+                    
+                    submitted = st.form_submit_button("Cadastrar Usuário")
+                    
+                    if submitted:
+                        if not all([email, login, senha_provisoria]):
+                            st.error("Todos os campos são obrigatórios!")
+                        elif not email.endswith("@normaq.com.br"):
+                            st.error("O email deve ser corporativo (@normaq.com.br)")
                         else:
-                            st.error("Erro ao salvar usuário.")
+                            usuarios = carregar_usuarios()
+                            usuarios[login] = {
+                                "email": email,
+                                "senha_hash": hash_senha(senha_provisoria),
+                                "primeiro_login": True
+                            }
+                            if salvar_usuarios(usuarios):
+                                st.success(f"Usuário {login} cadastrado com sucesso!")
+                            else:
+                                st.error("Erro ao salvar usuário.")
+            elif senha_admin != "":
+                st.error("Senha de administrador incorreta!")
+        
+        with tab_ajuste_senha:
+            st.subheader("Ajustes de Senha - Administrador")
+            
+            # Verificar senha de administrador
+            senha_admin = st.text_input("Senha de administrador:", type="password", key="senha_admin_ajuste")
+            
+            if senha_admin == SENHA_ADMIN:
+                usuarios = carregar_usuarios()
+                
+                if usuarios:
+                    usuario_selecionado = st.selectbox("Selecione o usuário:", list(usuarios.keys()))
+                    
+                    with st.form("form_ajuste_senha_admin"):
+                        nova_senha = st.text_input("Nova senha:", type="password", value=SENHA_PADRAO)
+                        resetar_primeiro_login = st.checkbox("Forçar alteração de senha no próximo login", value=True)
+                        
+                        submitted = st.form_submit_button("Alterar Senha")
+                        
+                        if submitted:
+                            if not nova_senha:
+                                st.error("A senha não pode estar vazia!")
+                            else:
+                                usuarios[usuario_selecionado]["senha_hash"] = hash_senha(nova_senha)
+                                usuarios[usuario_selecionado]["primeiro_login"] = resetar_primeiro_login
+                                
+                                if salvar_usuarios(usuarios):
+                                    st.success(f"Senha do usuário {usuario_selecionado} alterada com sucesso!")
+                                    st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
+                                else:
+                                    st.error("Erro ao salvar nova senha.")
+                else:
+                    st.warning("Nenhum usuário cadastrado.")
+            elif senha_admin != "":
+                st.error("Senha de administrador incorreta!")
         
         with tab_info:
             st.subheader("Informações de Acesso")
@@ -515,7 +558,7 @@ def main():
                 cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_selecionado]
             else:
                 # Converter CNPJ/CPF para string para evitar erro de comparação
-                cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CNPJ/CPF"].dropna().unique()])
+                cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CN极J/CPF"].dropna().unique()])
                 cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis, key="cnpj_select")
                 cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"].astype(str) == cnpj_cpf_selecionado]
                 cliente_selecionado = get_value(cliente_data.iloc[0], "CLIENTES") if not cliente_data.empty else ""
@@ -534,13 +577,13 @@ def main():
                     st.markdown(
                         f"""
                         <div style='
-                            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+                            background: linear-gradient(135deg, #1e1e1e 极%, #2d2d2d 100%);
                             border-radius: 12px;
                             padding: 20px;
                             margin: 15px 0;
                             box-shadow: 0 6px 16px rgba(0,0,0,0.2);
                             color: white;
-                            border-left: 4px solid #4CAF50;
+                            border-left: 4极 solid #4CAF50;
                         '>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#4CAF50; font-size:14px;'>👤 CONSULTOR:</strong><br>
@@ -557,7 +600,7 @@ def main():
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "PSSR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                            <极 style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>
                                     <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
@@ -572,7 +615,7 @@ def main():
 
                 with col2:
                     if df_pagina2 is not None and not df_pagina2.empty:
-                        maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
+                        maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_se极cionado]
 
                         if not maquinas_cliente.empty:
                             qtd_maquinas = len(maquinas_cliente)
@@ -657,7 +700,7 @@ def main():
         # Verificar senha
         senha = st.text_input("Digite a senha para acesso:", type="password")
         
-        if senha == "NMQ@2025":
+        if senha == SENHA_ADMIN:
             with st.form("form_cadastro"):
                 col1, col2 = st.columns(2)
                 
@@ -675,7 +718,7 @@ def main():
                 submitted = st.form_submit_button("Cadastrar Cliente")
                 
                 if submitted:
-                    if not all([cliente, consultor, revenda, pssr, cnpj_cpf, contato, n_cliente]):
+                    if not all([cliente, consultor, revenda, p极sr, cnpj_cpf, contato, n_cliente]):
                         st.error("Todos os campos marcados com * são obrigatórios!")
                     else:
                         try:
@@ -708,7 +751,7 @@ def main():
         # Verificar senha
         senha = st.text_input("Digite a senha para acesso:", type="password", key="senha_ajuste")
         
-        if senha == "NMQ@2025":
+        if senha == SENHA_ADMIN:
             try:
                 # Carregar dados
                 df_pagina1 = get_data("Página1")
