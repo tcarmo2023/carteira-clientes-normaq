@@ -46,8 +46,7 @@ EMAILS_AUTORIZADOS = {
     "flavia.costa@normaq.com.br",
     "johnny.barbosa@normaq.com.br",
     "joao.victor@normaq.com.br",
-    "alison.ferreira@normaq.com.br",
-    "thiago.carmo@normaq.com.br"
+    "alison.ferreira@normaq.com.br"
 }
 
 # ——————————————————————————————
@@ -196,6 +195,86 @@ def formatar_telefone(telefone):
         return numeros  # Retorna como está se não conseguir formatar
 
 # ——————————————————————————————
+#  FUNÇÃO PARA EXIBIR TABELA PROTEGIDA
+# ——————————————————————————————
+def exibir_tabela_protegida(dataframe):
+    """Exibe uma tabela sem opções de download e com proteção contra cópia"""
+    
+    # Converter DataFrame para HTML com estilo protegido
+    html = dataframe.to_html(
+        index=False,
+        classes='protected-table',
+        escape=False
+    )
+    
+    # Adicionar CSS para proteção
+    protected_html = f"""
+    <style>
+    .protected-table {{
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        font-size: 14px;
+        text-align: center;
+    }}
+    .protected-table th {{
+        background-color: #f0f0f0;
+        padding: 10px;
+        border: 1px solid #ddd;
+        font-weight: bold;
+    }}
+    .protected-table td {{
+        padding: 8px;
+        border: 1px solid #ddd;
+    }}
+    .protected-table-container {{
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        pointer-events: none;
+        position: relative;
+    }}
+    .protected-table-container::after {{
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: transparent;
+        z-index: 9999;
+        cursor: not-allowed;
+    }}
+    /* Esconder qualquer botão de download do Streamlit */
+    .stDownloadButton {{
+        display: none !important;
+    }}
+    /* Prevenir seleção de texto em toda a aplicação */
+    body {{
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }}
+    /* Permitir seleção apenas em campos de input */
+    input, textarea {{
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+    }}
+    </style>
+    
+    <div class="protected-table-container">
+        {html}
+    </div>
+    """
+    
+    # Exibir a tabela protegida
+    st.markdown(protected_html, unsafe_allow_html=True)
+
+# ——————————————————————————————
 #  INTERFACE PRINCIPAL
 # ——————————————————————————————
 def main():
@@ -276,7 +355,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style'color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
@@ -365,35 +444,8 @@ def main():
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
 
-                            # Centralizar dados
-                            st.markdown(
-                                """
-                                <style>
-                                .dataframe-container {
-                                    user-select: none;
-                                    -webkit-user-select: none;
-                                    -moz-user-select: none;
-                                    -ms-user-select: none;
-                                }
-                                .dataframe-container * {
-                                    pointer-events: none;
-                                }
-                                table td, table th {
-                                    text-align: center !important;
-                                }
-                                </style>
-                                """,
-                                unsafe_allow_html=True
-                            )
-
-                            # Exibir dataframe sem opções de download
-                            st.markdown("<div class='dataframe-container'>", unsafe_allow_html=True)
-                            st.dataframe(
-                                maquinas_cliente.reset_index(drop=True),
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                            st.markdown("</div>", unsafe_allow_html=True)
+                            # Exibir tabela protegida (sem opções de download e com proteção contra cópia)
+                            exibir_tabela_protegida(maquinas_cliente.reset_index(drop=True))
                             
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
@@ -431,7 +483,7 @@ def main():
                 
                 if submitted:
                     if not all([cliente, consultor, revenda, pssr, cnpj_cpf, contato, n_cliente]):
-                        st.error("Todos os campos marcados avec * são obrigatórios!")
+                        st.error("Todos os campos marcados com * são obrigatórios!")
                     else:
                         try:
                             # Preparar dados com os nomes exatos das colunas
