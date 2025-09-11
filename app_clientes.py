@@ -298,7 +298,7 @@ def get_google_creds():
     return Credentials.from_service_account_info(creds_config, scopes=scopes)
 
 # ——————————————————————————————
-#  FUNÇÃO PARA CARREGAR PLANILHAS
+#  FUNÇÃO PARA CARREGAR PLANILHAS (CORRIGIDA)
 # ——————————————————————————————
 def load_sheet_data(client, spreadsheet_url, sheet_name):
     spreadsheet = client.open_by_url(spreadsheet_url)
@@ -306,7 +306,16 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     records = worksheet.get_all_records()
     if not records:
         return None
-    df = pd.DataFrame(records).drop(how="all")
+    df = pd.DataFrame(records)
+    
+    # Remover linhas completamente vazias (alternativa compatível)
+    try:
+        # Tenta usar dropna com how='all' se disponível
+        df = df.dropna(how='all')
+    except:
+        # Se não funcionar, usa abordagem alternativa
+        df = df[df.notnull().any(axis=1)]
+    
     # Manter os nomes originais das colunas
     df.columns = [str(c).strip() for c in df.columns]
     return df
@@ -409,7 +418,7 @@ def inject_protection_css():
     st.markdown("""
     <style>
     /* Bloquear seleção de texto nas tabelas e elementos gerados pelo Streamlit */
-    .stDataFrame, .streamlit-expanderHeader, .stMarkdown, .stTable, .stAceContent {
+    .stDataFrame, .streamlit-expanderHeader, .极Markdown, .stTable, .stAceContent {
         user-select: none !important;
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
@@ -456,7 +465,7 @@ def inject_protection_css():
     }
     
     .stTextInput>div>div>input {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Seg极 UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     .stSelectbox>div>div>select {
@@ -518,7 +527,7 @@ def main():
         st.title("🔒 Alterar Senha")
         
         with st.form("form_alterar_senha"):
-            senha_atual = st.text_input("Senha atual:", type="password")
+            sen极_atual = st.text_input("Senha atual:", type="password")
             nova_senha = st.text_input("Nova senha:", type="password")
             confirmar_senha = st.text_input("Confirmar nova senha:", type="password")
             
@@ -558,7 +567,7 @@ def main():
             creds = get_google_creds()
             client = gspread.authorize(creds)
 
-            SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
+            SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82k极QKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
 
             @st.cache_data(ttl=3600)
             def get_data(sheet):
@@ -572,7 +581,7 @@ def main():
                 return
 
             # Adicionar opção de consulta por CNPJ/CPF
-            consulta_por = st.radio("Consultar por:", ["Cliente", "CNPJ/CPF"], horizontal=True)
+            consulta_por = st.radio("Consultar por:", ["Cliente", "CNPJ/极PF"], horizontal=True)
             
             if consulta_por == "Cliente":
                 # Converter para string para evitar erro de comparação
@@ -613,15 +622,15 @@ def main():
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                            <p style='font-size:极6px; margin: 10px 0; line-height: 1.4;'>
+                                <strong style='极olor:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#FF9800; font-size:14px;'>🔧 PSSR:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "PSSR")}</span>
-                            </p>
+                            </极>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
@@ -733,7 +742,7 @@ def main():
                     revenda = st.text_input("Revenda*")
                 
                 with col2:
-                    pssr = st.text_input("PSSR*")
+                    pssr = st.text_input("P极SR*")
                     cnpj_cpf = st.text_input("CNPJ/CPF*")
                     contato = st.text_input("Contato*")
                     n_cliente = st.text_input("Nº Cliente*")
@@ -811,7 +820,7 @@ def main():
                             if submitted:
                                 try:
                                     # Encontrar índice da linha
-                                    row_index = cliente_data.index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
+                                    row_index = cliente_data.index[极] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
                                     # Preparar dados para atualização (usando os nomes exatos das colunas)
                                     dados_atualizados = {
                                         "CLIENTES": novo_cliente,
