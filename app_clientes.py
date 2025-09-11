@@ -47,7 +47,10 @@ EMAILS_AUTORIZADOS = {
     "johnny.barbosa@normaq.com.br",
     "joao.victor@normaq.com.br",
     "alison.ferreira@normaq.com.br",
-    "thiago.carmo@normaq.com.br"
+    "thiago.carmo@normaq.com.br",
+    "antonio.gustavo@normaq.com.br",
+    "raony.lins@normaq.com.br",
+    "graziela.galdino@normaq.com.br"
 }
 
 # ——————————————————————————————
@@ -105,7 +108,7 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     return df
 
 # ——————————————————————————————
-#  FUNÇÃO PARA OBTER CABEçALHOS EXATOS
+#  FUNÇÃO PARA OBTER CABEÇALHOS EXATOS
 # ——————————————————————————————
 def get_exact_headers(client, spreadsheet_url, sheet_name):
     spreadsheet = client.open_by_url(spreadsheet_url)
@@ -196,46 +199,53 @@ def formatar_telefone(telefone):
         return numeros  # Retorna como está se não conseguir formatar
 
 # ——————————————————————————————
-#  CSS PARA PROTEGER A TABELA
+#  FUNÇÃO PARA CRIAR TABELA HTML PROTEGIDA
 # ——————————————————————————————
-def inject_protection_css():
-    st.markdown("""
+def criar_tabela_html_protegida(dataframe):
+    """Cria uma tabela HTML protegida contra download e cópia"""
+    
+    # Converter DataFrame para HTML
+    html = dataframe.to_html(index=False, escape=False, classes='protected-table')
+    
+    # Adicionar proteção CSS
+    protected_html = f"""
     <style>
-    /* Esconder botões de download do Streamlit */
-    .stDownloadButton {
-        display: none !important;
-    }
-    
-    /* Prevenir seleção de texto em tabelas */
-    .stDataFrame [data-testid="stDataFrame"] {
-        user-select: none !important;
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-    }
-    
-    /* Prevenir seleção de texto em toda a aplicação */
-    body {
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-        user-select: none !important;
-    }
-    
-    /* Permitir seleção apenas em campos de input e textarea */
-    input, textarea, [contenteditable="true"] {
-        -webkit-user-select: text !important;
-        -moz-user-select: text !important;
-        -ms-user-select: text !important;
-        user-select: text !important;
-    }
-    
-    /* Overlay protetor sobre a tabela */
-    .table-protector {
+    .protected-table {{
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        font-size: 14px;
+        text-align: center;
+        background-color: white;
+    }}
+    .protected-table th {{
+        background-color: #f0f0f0;
+        padding: 12px;
+        border: 2px solid #ddd;
+        font-weight: bold;
+        color: #333;
+    }}
+    .protected-table td {{
+        padding: 10px;
+        border: 1px solid #ddd;
+        color: #333;
+    }}
+    .protected-table tr:nth-child(even) {{
+        background-color: #f9f9f9;
+    }}
+    .protected-table tr:hover {{
+        background-color: #f5f5f5;
+    }}
+    .table-protector {{
         position: relative;
-    }
-    
-    .table-protector::after {
+        overflow-x: auto;
+        margin: 20px 0;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        background-color: white;
+    }}
+    .table-protector::after {{
         content: "";
         position: absolute;
         top: 0;
@@ -245,9 +255,42 @@ def inject_protection_css():
         background: transparent;
         z-index: 9999;
         cursor: not-allowed;
-    }
+    }}
+    /* Esconder completamente qualquer botão de download */
+    .stDownloadButton, [data-testid="stDownloadButton"] {{
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }}
+    /* Bloquear completamente seleção de texto */
+    body {{
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+    }}
+    /* Permitir seleção apenas em campos de entrada */
+    input, textarea {{
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+    }}
+    /* Remover qualquer menu de contexto */
+    body {{
+        context-menu: none !important;
+    }}
     </style>
-    """, unsafe_allow_html=True)
+    
+    <div class="table-protector">
+        {html}
+    </div>
+    """
+    
+    return protected_html
 
 # ——————————————————————————————
 #  INTERFACE PRINCIPAL
@@ -255,9 +298,6 @@ def inject_protection_css():
 def main():
     # Verificar email antes de mostrar qualquer conteúdo
     verificar_email()
-    
-    # Injetar CSS de proteção
-    inject_protection_css()
     
     # Mostrar email do usuário logado
     st.sidebar.success(f"👤 Logado como: {st.session_state.email_usuario}")
@@ -422,14 +462,9 @@ def main():
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
 
-                            # Exibir tabela protegida
-                            st.markdown("<div class='table-protector'>", unsafe_allow_html=True)
-                            st.dataframe(
-                                maquinas_cliente.reset_index(drop=True),
-                                use_container_width=True,
-                                hide_index=True
-                            )
-                            st.markdown("</div>", unsafe_allow_html=True)
+                            # Exibir tabela protegida usando HTML
+                            tabela_html = criar_tabela_html_protegida(maquinas_cliente.reset_index(drop=True))
+                            st.markdown(tabela_html, unsafe_allow_html=True)
                             
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
@@ -582,4 +617,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
