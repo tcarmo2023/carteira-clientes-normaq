@@ -47,6 +47,7 @@ EMAILS_AUTORIZADOS = {
     "johnny.barbosa@normaq.com.br",
     "joao.victor@normaq.com.br",
     "alison.ferreira@normaq.com.br"
+    "thiago.carmo@normaq.com.br"
 }
 
 # ——————————————————————————————
@@ -104,7 +105,7 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     return df
 
 # ——————————————————————————————
-#  FUNÇÃO PARA OBTER CABEÇALHOS EXATOS
+#  FUNÇÃO PARA OBTER CABEçALHOS EXATOS
 # ——————————————————————————————
 def get_exact_headers(client, spreadsheet_url, sheet_name):
     spreadsheet = client.open_by_url(spreadsheet_url)
@@ -195,47 +196,46 @@ def formatar_telefone(telefone):
         return numeros  # Retorna como está se não conseguir formatar
 
 # ——————————————————————————————
-#  FUNÇÃO PARA EXIBIR TABELA PROTEGIDA
+#  CSS PARA PROTEGER A TABELA
 # ——————————————————————————————
-def exibir_tabela_protegida(dataframe):
-    """Exibe uma tabela sem opções de download e com proteção contra cópia"""
-    
-    # Converter DataFrame para HTML com estilo protegido
-    html = dataframe.to_html(
-        index=False,
-        classes='protected-table',
-        escape=False
-    )
-    
-    # Adicionar CSS para proteção
-    protected_html = f"""
+def inject_protection_css():
+    st.markdown("""
     <style>
-    .protected-table {{
-        width: 100%;
-        border-collapse: collapse;
-        margin: 1rem 0;
-        font-size: 14px;
-        text-align: center;
-    }}
-    .protected-table th {{
-        background-color: #f0f0f0;
-        padding: 10px;
-        border: 1px solid #ddd;
-        font-weight: bold;
-    }}
-    .protected-table td {{
-        padding: 8px;
-        border: 1px solid #ddd;
-    }}
-    .protected-table-container {{
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        pointer-events: none;
+    /* Esconder botões de download do Streamlit */
+    .stDownloadButton {
+        display: none !important;
+    }
+    
+    /* Prevenir seleção de texto em tabelas */
+    .stDataFrame [data-testid="stDataFrame"] {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+    }
+    
+    /* Prevenir seleção de texto em toda a aplicação */
+    body {
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+    }
+    
+    /* Permitir seleção apenas em campos de input e textarea */
+    input, textarea, [contenteditable="true"] {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+    }
+    
+    /* Overlay protetor sobre a tabela */
+    .table-protector {
         position: relative;
-    }}
-    .protected-table-container::after {{
+    }
+    
+    .table-protector::after {
         content: "";
         position: absolute;
         top: 0;
@@ -245,34 +245,9 @@ def exibir_tabela_protegida(dataframe):
         background: transparent;
         z-index: 9999;
         cursor: not-allowed;
-    }}
-    /* Esconder qualquer botão de download do Streamlit */
-    .stDownloadButton {{
-        display: none !important;
-    }}
-    /* Prevenir seleção de texto em toda a aplicação */
-    body {{
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    }}
-    /* Permitir seleção apenas em campos de input */
-    input, textarea {{
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-        user-select: text;
-    }}
+    }
     </style>
-    
-    <div class="protected-table-container">
-        {html}
-    </div>
-    """
-    
-    # Exibir a tabela protegida
-    st.markdown(protected_html, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # ——————————————————————————————
 #  INTERFACE PRINCIPAL
@@ -280,6 +255,9 @@ def exibir_tabela_protegida(dataframe):
 def main():
     # Verificar email antes de mostrar qualquer conteúdo
     verificar_email()
+    
+    # Injetar CSS de proteção
+    inject_protection_css()
     
     # Mostrar email do usuário logado
     st.sidebar.success(f"👤 Logado como: {st.session_state.email_usuario}")
@@ -444,8 +422,14 @@ def main():
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
 
-                            # Exibir tabela protegida (sem opções de download e com proteção contra cópia)
-                            exibir_tabela_protegida(maquinas_cliente.reset_index(drop=True))
+                            # Exibir tabela protegida
+                            st.markdown("<div class='table-protector'>", unsafe_allow_html=True)
+                            st.dataframe(
+                                maquinas_cliente.reset_index(drop=True),
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                            st.markdown("</div>", unsafe_allow_html=True)
                             
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
