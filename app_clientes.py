@@ -581,7 +581,7 @@ def main():
                 return
 
             # Adicionar opção de consulta por CNPJ/CPF
-            consulta_por = st.radio("Consultar por:", ["Cliente", "CNPJ/极PF"], horizontal=True)
+            consulta_por = st.radio("Consultar por:", ["Cliente", "CNPJ/CPF"], horizontal=True)
             
             if consulta_por == "Cliente":
                 # Converter para string para evitar erro de comparação
@@ -866,4 +866,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
