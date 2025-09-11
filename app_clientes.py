@@ -5,6 +5,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import os
 import re
+import hashlib
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
@@ -36,53 +37,183 @@ except:
     pass
 
 # ——————————————————————————————
-#  LISTA DE EMAILS AUTORIZADOS
+#  LISTA DE EMAILS AUTORIZADOS E LOGINS
 # ——————————————————————————————
 EMAILS_AUTORIZADOS = {
-    "nardie.arruda@normaq.com.br",
-    "tarcio.henrique@normaq.com.br",
-    "camila.aguiar@normaq.com.br",
-    "sergio.carvalho@normaq.com.br",
-    "flavia.costa@normaq.com.br",
-    "johnny.barbosa@normaq.com.br",
-    "joao.victor@normaq.com.br",
-    "alison.ferreira@normaq.com.br",
-    "thiago.carmo@normaq.com.br",
-    "antonio.gustavo@normaq.com.br",
-    "raony.lins@normaq.com.br",
-    "graziela.galdino@normaq.com.br",
-    "tiago.fernandes@normaq.com.br",
-    "marcelo.teles@normaq.com.br"
+    "nardie.arruda@normaq.com.br": "nardie.arruda",
+    "tarcio.henrique@normaq.com.br": "tarcio.henrique",
+    "camila.aguiar@normaq.com.br": "camila.aguiar",
+    "sergio.carvalho@normaq.com.br": "sergio.carvalho",
+    "flavia.costa@normaq.com.br": "flavia.costa",
+    "johnny.barbosa@normaq.com.br": "johnny.barbosa",
+    "joao.victor@normaq.com.br": "joao.victor",
+    "alison.ferreira@normaq.com.br": "alison.ferreira",
+    "thiago.carmo@normaq.com.br": "thiago.carmo",
+    "antonio.gustavo@normaq.com.br": "antonio.gustavo",
+    "raony.lins@normaq.com.br": "raony.lins",
+    "graziela.galdino@normaq.com.br": "graziela.galdino",
+    "tiago.fernandes@normaq.com.br": "tiago.fernandes",
+    "marcelo.teles@normaq.com.br": "marcelo.teles"
 }
 
+# Senha padrão inicial
+SENHA_PADRAO = "NMQ@123"
+
 # ——————————————————————————————
-#  VERIFICAÇÃO DE EMAIL
+#  FUNÇÕES DE AUTENTICAÇÃO
 # ——————————————————————————————
-def verificar_email():
-    if 'email_verificado' not in st.session_state:
-        st.session_state.email_verificado = False
+def hash_senha(senha):
+    """Cria um hash da senha para armazenamento seguro"""
+    return hashlib.sha256(senha.encode()).hexdigest()
+
+def verificar_senha(senha, hash_armazenado):
+    """Verifica se a senha corresponde ao hash armazenado"""
+    return hash_senha(senha) == hash_armazenado
+
+def carregar_usuarios():
+    """Carrega os usuários do secrets do Streamlit"""
+    try:
+        return st.secrets.get("usuarios", {})
+    except:
+        return {}
+
+def salvar_usuarios(usuarios):
+    """Salva os usuários no secrets do Streamlit (apenas para demonstração)"""
+    # Nota: Em produção, você precisaria de um banco de dados real
+    # pois o st.secrets não é editável em tempo de execução
+    st.warning("Funcionalidade de cadastro é apenas demonstrativa. Em produção, use um banco de dados real.")
+
+def inicializar_usuarios():
+    """Inicializa os usuários com senha padrão se não existirem"""
+    usuarios = carregar_usuarios()
     
-    if not st.session_state.email_verificado:
+    for email, login in EMAILS_AUTORIZADOS.items():
+        if login not in usuarios:
+            usuarios[login] = {
+                "email": email,
+                "senha_hash": hash_senha(SENHA_PADRAO),
+                "primeiro_login": True
+            }
+    
+    return usuarios
+
+# ——————————————————————————————
+#  VERIFICAÇÃO DE LOGIN
+# ——————————————————————————————
+def verificar_login():
+    if 'usuario_logado' not in st.session_state:
+        st.session_state.usuario_logado = None
+    
+    if not st.session_state.usuario_logado:
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
         
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.subheader("🔐 Acesso Restrito")
-            email = st.text_input("Digite seu email corporativo:", placeholder="seu.email@normaq.com.br")
-            
-            if st.button("Acessar Sistema", type="primary", use_container_width=True):
-                if email.lower() in EMAILS_AUTORIZADOS:
-                    st.session_state.email_verificado = True
-                    st.session_state.email_usuario = email.lower()
-                    st.success("Acesso permitido!")
-                    st.rerun()
-                else:
-                    st.error("Email não autorizado. Entre em contato com o administrador.")
+        # Abas para Login e Cadastro
+        tab_login, tab_cadastro, tab_info = st.tabs(["Login", "Cadastrar Usuário", "Informações"])
         
-        st.markdown("---")
-        st.info("📧 Apenas emails corporativos autorizados têm acesso a este sistema")
+        with tab_login:
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                st.subheader("🔐 Acesso Restrito")
+                login = st.text_input("Login:", placeholder="seu.login")
+                senha = st.text_input("Senha:", type="password", placeholder="Digite sua senha")
+                
+                if st.button("Acessar Sistema", type="primary", use_container_width=True):
+                    usuarios = inicializar_usuarios()
+                    
+                    if login in usuarios:
+                        if verificar_senha(senha, usuarios[login]["senha_hash"]):
+                            st.session_state.usuario_logado = login
+                            st.session_state.email_usuario = usuarios[login]["email"]
+                            st.session_state.primeiro_login = usuarios[login].get("primeiro_login", False)
+                            st.success("Acesso permitido!")
+                            st.rerun()
+                        else:
+                            st.error("Senha incorreta.")
+                    else:
+                        st.error("Login não encontrado.")
+            
+            # Link para informações de recuperação
+            st.markdown("---")
+            st.info("""
+            **Problemas de acesso?**
+            - Esqueceu sua senha?
+            - Não possui cadastro?
+            
+            **Contate o Administrador:**  
+            Thiago Carmo – Especialista em Dados  
+            📞 [(81) 99514-3900](https://wa.me/5581995143900)
+            """)
+        
+        with tab_cadastro:
+            st.subheader("Cadastrar Novo Usuário")
+            
+            with st.form("form_cadastro_usuario"):
+                email = st.text_input("Email corporativo:", placeholder="seu.email@normaq.com.br")
+                login = st.text_input("Login:", placeholder="seu.login")
+                senha_provisoria = st.text_input("Senha provisória:", type="password", value=SENHA_PADRAO)
+                
+                submitted = st.form_submit_button("Cadastrar Usuário")
+                
+                if submitted:
+                    if not all([email, login, senha_provisoria]):
+                        st.error("Todos os campos são obrigatórios!")
+                    elif not email.endswith("@normaq.com.br"):
+                        st.error("O email deve ser corporativo (@normaq.com.br)")
+                    else:
+                        # Em produção, isso salvaria em um banco de dados
+                        st.success(f"Usuário {login} cadastrado com sucesso!")
+                        st.info("Em produção, esta informação seria salva em um banco de dados seguro.")
+        
+        with tab_info:
+            st.subheader("Informações de Acesso")
+            st.markdown("""
+            **Para problemas de acesso:**
+            
+            Entre em contato com o administrador do sistema:
+            
+            **Thiago Carmo** – Especialista em Dados  
+            📞 [(81) 99514-3900](https://wa.me/5581995143900)
+            
+            **Horário de atendimento:**  
+            Segunda a sexta, 8h às 18h
+            """)
+        
         st.stop()
+    
+    # Se é o primeiro login, força a alteração de senha
+    if st.session_state.get('primeiro_login', False):
+        alterar_senha_obrigatorio()
+
+# ——————————————————————————————
+#  ALTERAÇÃO DE SENHA OBRIGATÓRIA
+# ——————————————————————————————
+def alterar_senha_obrigatorio():
+    st.title("🔒 Alteração de Senha Obrigatória")
+    st.warning("É necessário alterar sua senha antes de acessar o sistema.")
+    
+    with st.form("form_alterar_senha"):
+        nova_senha = st.text_input("Nova senha:", type="password")
+        confirmar_senha = st.text_input("Confirmar nova senha:", type="password")
+        
+        submitted = st.form_submit_button("Alterar Senha")
+        
+        if submitted:
+            if not nova_senha:
+                st.error("A senha não pode estar vazia!")
+            elif nova_senha != confirmar_senha:
+                st.error("As senhas não coincidem!")
+            else:
+                # Em produção, atualizaria no banco de dados
+                usuarios = inicializar_usuarios()
+                if st.session_state.usuario_logado in usuarios:
+                    usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
+                    usuarios[st.session_state.usuario_logado]["primeiro_login"] = False
+                    salvar_usuarios(usuarios)  # Apenas demonstrativo
+                
+                st.session_state.primeiro_login = False
+                st.success("Senha alterada com sucesso!")
+                st.rerun()
 
 # ——————————————————————————————
 #  FUNÇÃO DE CREDENCIAIS
@@ -268,19 +399,58 @@ def inject_protection_css():
 #  INTERFACE PRINCIPAL
 # ——————————————————————————————
 def main():
-    # Verificar email antes de mostrar qualquer conteúdo
-    verificar_email()
+    # Verificar login antes de mostrar qualquer conteúdo
+    verificar_login()
     
     # Injetar CSS + JS de proteção
     inject_protection_css()
     
     # Mostrar email do usuário logado
-    st.sidebar.success(f"👤 Logado como: {st.session_state.email_usuario}")
+    st.sidebar.success(f"👤 Logado como: {st.session_state.usuario_logado}")
+    
+    # Opção para alterar senha
+    if st.sidebar.button("🔐 Alterar Senha"):
+        st.session_state.alterar_senha = True
     
     if st.sidebar.button("🚪 Sair"):
-        st.session_state.email_verificado = False
+        st.session_state.usuario_logado = None
         st.session_state.email_usuario = None
+        st.session_state.primeiro_login = False
         st.rerun()
+
+    # Interface para alterar senha
+    if st.session_state.get('alterar_senha', False):
+        st.title("🔒 Alterar Senha")
+        
+        with st.form("form_alterar_senha"):
+            senha_atual = st.text_input("Senha atual:", type="password")
+            nova_senha = st.text_input("Nova senha:", type="password")
+            confirmar_senha = st.text_input("Confirmar nova senha:", type="password")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                submitted = st.form_submit_button("Alterar Senha")
+            with col2:
+                cancelar = st.form_submit_button("Cancelar")
+            
+            if cancelar:
+                st.session_state.alterar_senha = False
+                st.rerun()
+                
+            if submitted:
+                usuarios = inicializar_usuarios()
+                if verificar_senha(senha_atual, usuarios[st.session_state.usuario_logado]["senha_hash"]):
+                    if nova_senha != confirmar_senha:
+                        st.error("As novas senhas não coincidem!")
+                    else:
+                        # Em produção, atualizaria no banco de dados
+                        usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
+                        salvar_usuarios(usuarios)  # Apenas demonstrativo
+                        st.session_state.alterar_senha = False
+                        st.success("Senha alterada com sucesso!")
+                        st.rerun()
+                else:
+                    st.error("Senha atual incorreta!")
 
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
 
@@ -314,9 +484,9 @@ def main():
                 cliente_selecionado = st.selectbox("Selecione um cliente:", clientes_disponiveis, key="cliente_select")
                 cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_selecionado]
             else:
-                # Converter CN極力/CPF para string para evitar erro de comparação
+                # Converter CNPJ/CPF para string para evitar erro de comparação
                 cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CNPJ/CPF"].dropna().unique()])
-                cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis,極力="cnpj_select")
+                cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis, key="cnpj_select")
                 cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"].astype(str) == cnpj_cpf_selecionado]
                 cliente_selecionado = get_value(cliente_data.iloc[0], "CLIENTES") if not cliente_data.empty else ""
 
@@ -334,7 +504,7 @@ def main():
                     st.markdown(
                         f"""
                         <div style='
-                            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2極力 100%);
+                            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
                             border-radius: 12px;
                             padding: 20px;
                             margin: 15px 0;
@@ -347,7 +517,7 @@ def main():
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <p style='font-size:16px; margin: 10極力 0; line-height: 1.4;'>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
@@ -358,7 +528,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style'color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
+                                <strong style='color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>
                                     <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
                                         {contato_value} 💬
@@ -492,7 +662,7 @@ def main():
                             
                             # Salvar na planilha
                             if save_to_sheet(client, SPREADSHEET_URL, "Página1", novo_cliente):
-                                st.success("Cliente cadastrado com極力cesso!")
+                                st.success("Cliente cadastrado com sucesso!")
                                 st.cache_data.clear()
                             else:
                                 st.error("Erro ao cadastrar cliente.")
@@ -519,7 +689,7 @@ def main():
                 
                 if cliente_ajuste:
                     # Obter dados do cliente selecionado
-                    cliente_data = df_pagina1[極力_pagina1["CLIENTES"].astype(str) == cliente_ajuste]
+                    cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_ajuste]
                     
                     if not cliente_data.empty:
                         cliente_data_row = cliente_data.iloc[0]
@@ -546,13 +716,13 @@ def main():
                                 try:
                                     # Encontrar índice da linha
                                     row_index = cliente_data.index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
-                                                                    # Preparar dados para atualização (usando os nomes exatos das colunas)
+                                    # Preparar dados para atualização (usando os nomes exatos das colunas)
                                     dados_atualizados = {
                                         "CLIENTES": novo_cliente,
                                         "NOVO CONSULTOR": novo_consultor,
                                         "Revenda": nova_revenda,
                                         "PSSR": novo_pssr,
-                                        "CNP極力/CPF": novo_cnpj,
+                                        "CNPJ/CPF": novo_cnpj,
                                         "Contato": novo_contato,
                                         "Nº Cliente": novo_n_cliente
                                     }
@@ -580,9 +750,9 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.4.6 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.5.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
-        Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 (81) 99514-3900
+        Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 <a href='https://wa.me/5581995143900' style='color: #666;'>(81) 99514-3900</a>
         </div>
         """,
         unsafe_allow_html=True
