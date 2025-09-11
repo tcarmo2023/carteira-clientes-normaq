@@ -567,7 +567,7 @@ def main():
             creds = get_google_creds()
             client = gspread.authorize(creds)
 
-            SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82k极QKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
+            SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
 
             @st.cache_data(ttl=3600)
             def get_data(sheet):
@@ -866,3 +866,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
