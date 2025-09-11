@@ -228,6 +228,15 @@ def inject_protection_css():
         -moz-user-select: text !important;
         -ms-user-select: text !important;
     }
+    
+    /* Esconder qualquer botão de download que possa aparecer */
+    .stDownloadButton, [data-testid="stDownloadButton"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        opacity: 0 !important;
+    }
     </style>
 
     <script>
@@ -305,9 +314,9 @@ def main():
                 cliente_selecionado = st.selectbox("Selecione um cliente:", clientes_disponiveis, key="cliente_select")
                 cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_selecionado]
             else:
-                # Converter CNPJ/CPF para string para evitar erro de comparação
+                # Converter CN極力/CPF para string para evitar erro de comparação
                 cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CNPJ/CPF"].dropna().unique()])
-                cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis, key="cnpj_select")
+                cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis,極力="cnpj_select")
                 cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"].astype(str) == cnpj_cpf_selecionado]
                 cliente_selecionado = get_value(cliente_data.iloc[0], "CLIENTES") if not cliente_data.empty else ""
 
@@ -325,7 +334,7 @@ def main():
                     st.markdown(
                         f"""
                         <div style='
-                            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+                            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2極力 100%);
                             border-radius: 12px;
                             padding: 20px;
                             margin: 15px 0;
@@ -338,7 +347,7 @@ def main():
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                            <p style='font-size:16px; margin: 10極力 0; line-height: 1.4;'>
                                 <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
@@ -428,17 +437,8 @@ def main():
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
 
-                            # Exibir tabela usando data_editor em modo somente leitura (sem menu de download)
-                            try:
-                                st.data_editor(
-                                    maquinas_cliente.reset_index(drop=True),
-                                    use_container_width=True,
-                                    disabled=True
-                                )
-                            except Exception:
-                                # Caso a versão do Streamlit do servidor não suporte data_editor,
-                                # como fallback exibe st.table (também sem menu de download)
-                                st.table(maquinas_cliente.reset_index(drop=True))
+                            # Usar st.table() em vez de st.dataframe() para evitar o botão de download
+                            st.table(maquinas_cliente.reset_index(drop=True))
 
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
@@ -492,7 +492,7 @@ def main():
                             
                             # Salvar na planilha
                             if save_to_sheet(client, SPREADSHEET_URL, "Página1", novo_cliente):
-                                st.success("Cliente cadastrado com sucesso!")
+                                st.success("Cliente cadastrado com極力cesso!")
                                 st.cache_data.clear()
                             else:
                                 st.error("Erro ao cadastrar cliente.")
@@ -519,7 +519,7 @@ def main():
                 
                 if cliente_ajuste:
                     # Obter dados do cliente selecionado
-                    cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_ajuste]
+                    cliente_data = df_pagina1[極力_pagina1["CLIENTES"].astype(str) == cliente_ajuste]
                     
                     if not cliente_data.empty:
                         cliente_data_row = cliente_data.iloc[0]
@@ -552,7 +552,7 @@ def main():
                                         "NOVO CONSULTOR": novo_consultor,
                                         "Revenda": nova_revenda,
                                         "PSSR": novo_pssr,
-                                        "CNPJ/CPF": novo_cnpj,
+                                        "CNP極力/CPF": novo_cnpj,
                                         "Contato": novo_contato,
                                         "Nº Cliente": novo_n_cliente
                                     }
@@ -591,4 +591,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
