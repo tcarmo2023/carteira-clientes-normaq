@@ -200,98 +200,52 @@ def formatar_telefone(telefone):
         return numeros  # Retorna como está se não conseguir formatar
 
 # ——————————————————————————————
-#  FUNÇÃO PARA CRIAR TABELA HTML PROTEGIDA
+#  FUNÇÃO PARA DOWNLOAD COM SENHA
 # ——————————————————————————————
-def criar_tabela_html_protegida(dataframe):
-    """Cria uma tabela HTML protegida contra download e cópia"""
+def download_com_senha(dataframe, nome_arquivo):
+    """Cria um botão de download protegido por senha"""
     
-    # Converter DataFrame para HTML
-    html = dataframe.to_html(index=False, escape=False, classes='protected-table')
-    
-    # Adicionar proteção CSS
-    protected_html = f"""
+    with st.expander("📥 Download de Dados (Requer Senha)"):
+        senha_download = st.text_input("Digite a senha para download:", type="password", key="senha_download")
+        
+        if st.button("Baixar CSV", key="btn_download"):
+            if senha_download == "NMQ@2025":
+                csv = dataframe.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="Clique para baixar",
+                    data=csv,
+                    file_name=nome_arquivo,
+                    mime="text/csv",
+                    key="download_final"
+                )
+            elif senha_download != "":
+                st.error("Senha incorreta para download!")
+            else:
+                st.warning("Digite a senha para habilitar o download")
+
+# ——————————————————————————————
+#  CSS PARA BLOQUEAR SELEÇÃO DE TEXTO
+# ——————————————————————————————
+def inject_protection_css():
+    st.markdown("""
     <style>
-    .protected-table {{
-        width: 100%;
-        border-collapse: collapse;
-        margin: 1rem 0;
-        font-size: 14px;
-        text-align: center;
-        background-color: white;
-    }}
-    .protected-table th {{
-        background-color: #f0f0f0;
-        padding: 12px;
-        border: 2px solid #ddd;
-        font-weight: bold;
-        color: #333;
-    }}
-    .protected-table td {{
-        padding: 10px;
-        border: 1px solid #ddd;
-        color: #333;
-    }}
-    .protected-table tr:nth-child(even) {{
-        background-color: #f9f9f9;
-    }}
-    .protected-table tr:hover {{
-        background-color: #f5f5f5;
-    }}
-    .table-protector {{
-        position: relative;
-        overflow-x: auto;
-        margin: 20px 0;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 10px;
-        background-color: white;
-    }}
-    .table-protector::after {{
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: transparent;
-        z-index: 9999;
-        cursor: not-allowed;
-    }}
-    /* Esconder completamente qualquer botão de download */
-    .stDownloadButton, [data-testid="stDownloadButton"] {{
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        width: 0 !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }}
-    /* Bloquear completamente seleção de texto */
-    body {{
+    /* Bloquear seleção de texto nas tabelas */
+    .stDataFrame {
+        user-select: none !important;
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
         -ms-user-select: none !important;
-        user-select: none !important;
-    }}
-    /* Permitir seleção apenas em campos de entrada */
-    input, textarea {{
+    }
+    
+    /* Permitir seleção apenas em campos de input */
+    input, textarea {
+        user-select: text !important;
         -webkit-user-select: text !important;
         -moz-user-select: text !important;
         -ms-user-select: text !important;
-        user-select: text !important;
-    }}
-    /* Remover qualquer menu de contexto */
-    body {{
-        context-menu: none !important;
-    }}
+    }
     </style>
-    
-    <div class="table-protector">
-        {html}
-    </div>
-    """
-    
-    return protected_html
+    """, unsafe_allow_html=True)
 
 # ——————————————————————————————
 #  INTERFACE PRINCIPAL
@@ -299,6 +253,9 @@ def criar_tabela_html_protegida(dataframe):
 def main():
     # Verificar email antes de mostrar qualquer conteúdo
     verificar_email()
+    
+    # Injetar CSS de proteção
+    inject_protection_css()
     
     # Mostrar email do usuário logado
     st.sidebar.success(f"👤 Logado como: {st.session_state.email_usuario}")
@@ -384,7 +341,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style='color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
+                                <strong style'color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>
                                     <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
                                         {contato_value} 💬
@@ -463,9 +420,16 @@ def main():
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
 
-                            # Exibir tabela protegida usando HTML
-                            tabela_html = criar_tabela_html_protegida(maquinas_cliente.reset_index(drop=True))
-                            st.markdown(tabela_html, unsafe_allow_html=True)
+                            # Exibir tabela normalmente
+                            st.dataframe(
+                                maquinas_cliente.reset_index(drop=True),
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                            
+                            # Adicionar opção de download protegida por senha
+                            nome_arquivo = f"dados_cliente_{cliente_selecionado.replace(' ', '_')}.csv"
+                            download_com_senha(maquinas_cliente, nome_arquivo)
                             
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
@@ -618,5 +582,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
