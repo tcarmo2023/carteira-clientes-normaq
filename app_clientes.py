@@ -6,6 +6,8 @@ from datetime import datetime
 import os
 import re
 import hashlib
+import json
+from pathlib import Path
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
@@ -60,6 +62,45 @@ EMAILS_AUTORIZADOS = {
 SENHA_PADRAO = "NMQ@123"
 
 # ——————————————————————————————
+#  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS
+# ——————————————————————————————
+def get_usuarios_file():
+    """Retorna o caminho do arquivo de usuários"""
+    return Path("usuarios.json")
+
+def carregar_usuarios():
+    """Carrega os usuários do arquivo JSON"""
+    usuarios_file = get_usuarios_file()
+    
+    if not usuarios_file.exists():
+        # Se o arquivo não existe, cria com os usuários padrão
+        usuarios = {}
+        for email, login in EMAILS_AUTORIZADOS.items():
+            usuarios[login] = {
+                "email": email,
+                "senha_hash": hash_senha(SENHA_PADRAO),
+                "primeiro_login": True
+            }
+        salvar_usuarios(usuarios)
+        return usuarios
+    
+    try:
+        with open(usuarios_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {}
+
+def salvar_usuarios(usuarios):
+    """Salva os usuários no arquivo JSON"""
+    try:
+        with open(get_usuarios_file(), 'w', encoding='utf-8') as f:
+            json.dump(usuarios, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Erro ao salvar usuários: {e}")
+        return False
+
+# ——————————————————————————————
 #  FUNÇÕES DE AUTENTICAÇÃO
 # ——————————————————————————————
 def hash_senha(senha):
@@ -70,32 +111,9 @@ def verificar_senha(senha, hash_armazenado):
     """Verifica se a senha corresponde ao hash armazenado"""
     return hash_senha(senha) == hash_armazenado
 
-def carregar_usuarios():
-    """Carrega os usuários do secrets do Streamlit"""
-    try:
-        return st.secrets.get("usuarios", {})
-    except:
-        return {}
-
-def salvar_usuarios(usuarios):
-    """Salva os usuários no secrets do Streamlit (apenas para demonstração)"""
-    # Nota: Em produção, você precisaria de um banco de dados real
-    # pois o st.secrets não é editável em tempo de execução
-    st.warning("Funcionalidade de cadastro é apenas demonstrativa. Em produção, use um banco de dados real.")
-
 def inicializar_usuarios():
     """Inicializa os usuários com senha padrão se não existirem"""
-    usuarios = carregar_usuarios()
-    
-    for email, login in EMAILS_AUTORIZADOS.items():
-        if login not in usuarios:
-            usuarios[login] = {
-                "email": email,
-                "senha_hash": hash_senha(SENHA_PADRAO),
-                "primeiro_login": True
-            }
-    
-    return usuarios
+    return carregar_usuarios()
 
 # ——————————————————————————————
 #  VERIFICAÇÃO DE LOGIN
@@ -161,9 +179,16 @@ def verificar_login():
                     elif not email.endswith("@normaq.com.br"):
                         st.error("O email deve ser corporativo (@normaq.com.br)")
                     else:
-                        # Em produção, isso salvaria em um banco de dados
-                        st.success(f"Usuário {login} cadastrado com sucesso!")
-                        st.info("Em produção, esta informação seria salva em um banco de dados seguro.")
+                        usuarios = carregar_usuarios()
+                        usuarios[login] = {
+                            "email": email,
+                            "senha_hash": hash_senha(senha_provisoria),
+                            "primeiro_login": True
+                        }
+                        if salvar_usuarios(usuarios):
+                            st.success(f"Usuário {login} cadastrado com sucesso!")
+                        else:
+                            st.error("Erro ao salvar usuário.")
         
         with tab_info:
             st.subheader("Informações de Acesso")
@@ -204,16 +229,19 @@ def alterar_senha_obrigatorio():
             elif nova_senha != confirmar_senha:
                 st.error("As senhas não coincidem!")
             else:
-                # Em produção, atualizaria no banco de dados
-                usuarios = inicializar_usuarios()
+                usuarios = carregar_usuarios()
                 if st.session_state.usuario_logado in usuarios:
                     usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
                     usuarios[st.session_state.usuario_logado]["primeiro_login"] = False
-                    salvar_usuarios(usuarios)  # Apenas demonstrativo
-                
-                st.session_state.primeiro_login = False
-                st.success("Senha alterada com sucesso!")
-                st.rerun()
+                    
+                    if salvar_usuarios(usuarios):
+                        st.session_state.primeiro_login = False
+                        st.success("Senha alterada com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("Erro ao salvar nova senha.")
+                else:
+                    st.error("Usuário não encontrado!")
 
 # ——————————————————————————————
 #  FUNÇÃO DE CREDENCIAIS
@@ -416,6 +444,7 @@ def main():
         st.session_state.usuario_logado = None
         st.session_state.email_usuario = None
         st.session_state.primeiro_login = False
+        st.session_state.alterar_senha = False
         st.rerun()
 
     # Interface para alterar senha
@@ -438,17 +467,18 @@ def main():
                 st.rerun()
                 
             if submitted:
-                usuarios = inicializar_usuarios()
+                usuarios = carregar_usuarios()
                 if verificar_senha(senha_atual, usuarios[st.session_state.usuario_logado]["senha_hash"]):
                     if nova_senha != confirmar_senha:
                         st.error("As novas senhas não coincidem!")
                     else:
-                        # Em produção, atualizaria no banco de dados
                         usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
-                        salvar_usuarios(usuarios)  # Apenas demonstrativo
-                        st.session_state.alterar_senha = False
-                        st.success("Senha alterada com sucesso!")
-                        st.rerun()
+                        if salvar_usuarios(usuarios):
+                            st.session_state.alterar_senha = False
+                            st.success("Senha alterada com sucesso!")
+                            st.rerun()
+                        else:
+                            st.error("Erro ao salvar nova senha.")
                 else:
                     st.error("Senha atual incorreta!")
 
