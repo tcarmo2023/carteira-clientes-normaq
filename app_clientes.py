@@ -36,6 +36,43 @@ except:
     pass
 
 # ——————————————————————————————
+#  LISTA DE EMAILS AUTORIZADOS
+# ——————————————————————————————
+EMAILS_AUTORIZADOS = {
+    "nardie.arruda@normaq.com.br",
+    "tarcio.henrique@normaq.com.br",
+    "camila.aguiar@normaq.com.br",
+    "sergio.carvalho@normaq.com.br",
+    "flavia.costa@normaq.com.br",
+    "johnny.barbosa@normaq.com.br",
+    "joao.victor@normaq.com.br",
+    "alison.ferreira@normaq.com.br",
+    "thiago.carmo@normaq.com.br"
+}
+
+# ——————————————————————————————
+#  VERIFICAÇÃO DE EMAIL
+# ——————————————————————————————
+def verificar_email():
+    if 'email_verificado' not in st.session_state:
+        st.session_state.email_verificado = False
+    
+    if not st.session_state.email_verificado:
+        with st.sidebar:
+            st.header("🔐 Acesso Restrito")
+            email = st.text_input("Digite seu email corporativo:")
+            
+            if st.button("Acessar"):
+                if email.lower() in EMAILS_AUTORIZADOS:
+                    st.session_state.email_verificado = True
+                    st.success("Acesso permitido!")
+                    st.rerun()
+                else:
+                    st.error("Email não autorizado. Entre em contato com o administrador.")
+        
+        st.stop()
+
+# ——————————————————————————————
 #  FUNÇÃO DE CREDENCIAIS
 # ——————————————————————————————
 def get_google_creds():
@@ -155,6 +192,9 @@ def formatar_telefone(telefone):
 #  INTERFACE PRINCIPAL
 # ——————————————————————————————
 def main():
+    # Verificar email antes de mostrar qualquer conteúdo
+    verificar_email()
+    
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
 
     # Adicionar abas
@@ -322,7 +362,42 @@ def main():
                                 unsafe_allow_html=True
                             )
 
-                            st.dataframe(maquinas_cliente.reset_index(drop=True))
+                            # Desabilitar download e cópia dos dados
+                            st.dataframe(
+                                maquinas_cliente.reset_index(drop=True),
+                                use_container_width=True,
+                                hide_index=True,
+                                column_config={
+                                    "N°": st.column_config.NumberColumn(
+                                        "N°",
+                                        width="small"
+                                    ),
+                                    "Nº CLIENTE": st.column_config.TextColumn(
+                                        "Nº CLIENTE",
+                                        width="medium"
+                                    )
+                                },
+                                # Desabilitar funcionalidades de download e seleção
+                                disabled=True
+                            )
+                            
+                            # Adicionar CSS para desabilitar seleção de texto
+                            st.markdown(
+                                """
+                                <style>
+                                .stDataFrame {
+                                    user-select: none;
+                                    -webkit-user-select: none;
+                                    -moz-user-select: none;
+                                    -ms-user-select: none;
+                                }
+                                .stDataFrame * {
+                                    pointer-events: none;
+                                }
+                                </style>
+                                """,
+                                unsafe_allow_html=True
+                            )
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
                             st.warning("📭 Nenhuma máquina encontrada para este cliente")
