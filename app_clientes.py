@@ -673,7 +673,7 @@ def main():
                         '>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#4CAF50; font-size:14px;'>👤 CONSULTOR:</strong><br>
-                                <span style='极ont-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
+                                <span style='font-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
@@ -686,7 +686,7 @@ def main():
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "PSSR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <p style='font-size:16px; margin: 10px 极; line-height: 1.4;'>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>
                                     <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
@@ -701,7 +701,7 @@ def main():
 
                 with col2:
                     if df_pagina2 is not None and not df_pagina2.empty:
-                        maquinas_cliente = df极agina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
+                        maquinas_cliente = df_Pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
 
                         if not maquinas_cliente.empty:
                             qtd_maquinas = len(maquinas_cliente)
