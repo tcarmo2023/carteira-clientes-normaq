@@ -742,7 +742,7 @@ def main():
                     revenda = st.text_input("Revenda*")
                 
                 with col2:
-                    pssr = st.text_input("P极SR*")
+                    pssr = st.text_input("PSSR*")
                     cnpj_cpf = st.text_input("CNPJ/CPF*")
                     contato = st.text_input("Contato*")
                     n_cliente = st.text_input("Nº Cliente*")
@@ -866,5 +866,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
