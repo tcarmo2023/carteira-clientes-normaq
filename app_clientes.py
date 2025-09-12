@@ -64,6 +64,38 @@ SENHA_PADRAO = "NMQ@123"
 SENHA_ADMIN = "NMQ@2025"
 
 # ——————————————————————————————
+#  OPÇÕES PARA OS DROPDOWNS
+# ——————————————————————————————
+OPCOES_REVENDA = [
+    "Recife",
+    "Natal", 
+    "Fortaleza",
+    "Petrolina"
+]
+
+OPCOES_PSSR = [
+    "Flávio",
+    "Kecio",
+    "Marcelo"
+]
+
+OPCOES_CONSULTOR = [
+    "Camila",
+    "David",
+    "Elivaldo",
+    "Josezito",
+    "Nardie",
+    "Roseane",
+    "Tarcio",
+    "Tarcisio",
+    "Tiago",
+    "Sergio",
+    "Renato",
+    "Francisco",
+    "Aliny"
+]
+
+# ——————————————————————————————
 #  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS
 # ——————————————————————————————
 def get_usuarios_file():
@@ -75,9 +107,10 @@ def carregar_usuarios():
     usuarios_file = get_usuarios_file()
     
     if not usuarios_file.exists():
-        # Se o arquivo não existe, cria com os usuários padrão
+        # Se o arquivo não existe, cria com os usuários padrão mas SEM SOBRESCREVER se já existirem
         usuarios = {}
         for email, login in EMAILS_AUTORIZADOS.items():
+            # Só adiciona se não existir já no arquivo (para não perder senhas alteradas)
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
@@ -88,8 +121,29 @@ def carregar_usuarios():
     
     try:
         with open(usuarios_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
+            usuarios_existentes = json.load(f)
+            
+            # Verifica se há usuários novos nos EMAILS_AUTORIZADOS que não estão no arquivo
+            usuarios_para_adicionar = {}
+            for email, login in EMAILS_AUTORIZADOS.items():
+                if login not in usuarios_existentes:
+                    usuarios_para_adicionar[login] = {
+                        "email": email,
+                        "senha_hash": hash_senha(SENHA_PADRAO),
+                        "primeiro_login": True
+                    }
+            
+            # Se houver usuários novos, adiciona ao dicionário existente
+            if usuarios_para_adicionar:
+                usuarios_existentes.update(usuarios_para_adicionar)
+                salvar_usuarios(usuarios_existentes)
+                return usuarios_existentes
+            else:
+                return usuarios_existentes
+                
+    except Exception as e:
+        st.error(f"Erro ao carregar usuários: {e}")
+        # Retorna dicionário vazio em caso de erro
         return {}
 
 def salvar_usuarios(usuarios):
@@ -418,7 +472,7 @@ def inject_protection_css():
     st.markdown("""
     <style>
     /* Bloquear seleção de texto nas tabelas e elementos gerados pelo Streamlit */
-    .stDataFrame, .streamlit-expanderHeader, .极Markdown, .stTable, .stAceContent {
+    .stDataFrame, .streamlit-expanderHeader, .Markdown, .stTable, .stAceContent {
         user-select: none !important;
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
@@ -465,7 +519,7 @@ def inject_protection_css():
     }
     
     .stTextInput>div>div>input {
-        font-family: 'Seg极 UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     .stSelectbox>div>div>select {
@@ -527,7 +581,7 @@ def main():
         st.title("🔒 Alterar Senha")
         
         with st.form("form_alterar_senha"):
-            sen极_atual = st.text_input("Senha atual:", type="password")
+            senha_atual = st.text_input("Senha atual:", type="password")
             nova_senha = st.text_input("Nova senha:", type="password")
             confirmar_senha = st.text_input("Confirmar nova senha:", type="password")
             
@@ -619,20 +673,20 @@ def main():
                         '>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#4CAF50; font-size:14px;'>👤 CONSULTOR:</strong><br>
-                                <span style='font-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
+                                <span style='极ont-size:18px; font-weight:600;'>{get_value(row, "NOVO CONSULTOR")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <p style='font-size:极6px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style='极olor:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
                                 <strong style='color:#FF9800; font-size:14px;'>🔧 PSSR:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "PSSR")}</span>
-                            </极>
+                            </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
-                            <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
+                            <p style='font-size:16px; margin: 10px 极; line-height: 1.4;'>
                                 <strong style='color:#9C27B0; font-size:14px;'>📞 CONTATO:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>
                                     <a href='{whatsapp_link}' target='_blank' style='color: #25D366; text-decoration: none;'>
@@ -647,7 +701,7 @@ def main():
 
                 with col2:
                     if df_pagina2 is not None and not df_pagina2.empty:
-                        maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
+                        maquinas_cliente = df极agina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
 
                         if not maquinas_cliente.empty:
                             qtd_maquinas = len(maquinas_cliente)
@@ -738,11 +792,11 @@ def main():
                 
                 with col1:
                     cliente = st.text_input("CLIENTES*")
-                    consultor = st.text_input("NOVO CONSULTOR*")
-                    revenda = st.text_input("Revenda*")
+                    revenda = st.selectbox("Revenda*", OPCOES_REVENDA)
                 
                 with col2:
-                    pssr = st.text_input("PSSR*")
+                    pssr = st.selectbox("PSSR*", OPCOES_PSSR)
+                    consultor = st.selectbox("NOVO CONSULTOR*", OPCOES_CONSULTOR)
                     cnpj_cpf = st.text_input("CNPJ/CPF*")
                     contato = st.text_input("Contato*")
                     n_cliente = st.text_input("Nº Cliente*")
@@ -806,11 +860,21 @@ def main():
                             
                             with col1:
                                 novo_cliente = st.text_input("CLIENTES", value=get_value(cliente_data_row, "CLIENTES"))
-                                novo_consultor = st.text_input("NOVO CONSULTOR", value=get_value(cliente_data_row, "NOVO CONSULTOR"))
-                                nova_revenda = st.text_input("Revenda", value=get_value(cliente_data_row, "Revenda"))
+                                # Função para encontrar índice seguro
+                                def encontrar_indice_seguro(valor, lista):
+                                    try:
+                                        return lista.index(valor)
+                                    except ValueError:
+                                        return 0
+                                
+                                novo_consultor = st.selectbox("NOVO CONSULTOR", OPCOES_CONSULTOR, 
+                                                             index=encontrar_indice_seguro(get_value(cliente_data_row, "NOVO CONSULTOR"), OPCOES_CONSULTOR))
+                                nova_revenda = st.selectbox("Revenda", OPCOES_REVENDA,
+                                                          index=encontrar_indice_seguro(get_value(cliente_data_row, "Revenda"), OPCOES_REVENDA))
                             
                             with col2:
-                                novo_pssr = st.text_input("PSSR", value=get_value(cliente_data_row, "PSSR"))
+                                novo_pssr = st.selectbox("PSSR", OPCOES_PSSR,
+                                                        index=encontrar_indice_seguro(get_value(cliente_data_row, "PSSR"), OPCOES_PSSR))
                                 novo_cnpj = st.text_input("CNPJ/CPF", value=get_value(cliente_data_row, "CNPJ/CPF"))
                                 novo_contato = st.text_input("Contato", value=get_value(cliente_data_row, "Contato"))
                                 novo_n_cliente = st.text_input("Nº Cliente", value=get_value(cliente_data_row, "Nº Cliente"))
@@ -820,7 +884,7 @@ def main():
                             if submitted:
                                 try:
                                     # Encontrar índice da linha
-                                    row_index = cliente_data.index[极] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
+                                    row_index = cliente_data.index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
                                     # Preparar dados para atualização (usando os nomes exatos das colunas)
                                     dados_atualizados = {
                                         "CLIENTES": novo_cliente,
@@ -866,6 +930,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
