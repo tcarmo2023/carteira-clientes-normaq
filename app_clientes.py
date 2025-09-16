@@ -8,6 +8,7 @@ import re
 import hashlib
 import json
 from pathlib import Path
+import base64
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
@@ -114,7 +115,8 @@ def carregar_usuarios():
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
-                "primeiro_login": True
+                "primeiro_login": True,
+                "senha_visualizavel": SENHA_PADRAO  # Armazena a senha em texto claro para visualização
             }
         salvar_usuarios(usuarios)
         return usuarios
@@ -130,7 +132,8 @@ def carregar_usuarios():
                     usuarios_para_adicionar[login] = {
                         "email": email,
                         "senha_hash": hash_senha(SENHA_PADRAO),
-                        "primeiro_login": True
+                        "primeiro_login": True,
+                        "senha_visualizavel": SENHA_PADRAO  # Armazena a senha em texto claro para visualização
                     }
             
             # Se houver usuários novos, adiciona ao dicionário existente
@@ -172,6 +175,24 @@ def inicializar_usuarios():
     return carregar_usuarios()
 
 # ——————————————————————————————
+#  FUNÇÃO PARA CARREGAR IMAGEM DE FUNDO
+# ——————————————————————————————
+def add_bg_from_url():
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("https://drive.google.com/uc?export=view&id=1qm6xtMvMdBQGirrjbc4dwZWBbDtk3YIA");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# ——————————————————————————————
 #  VERIFICAÇÃO DE LOGIN
 # ——————————————————————————————
 def verificar_login():
@@ -179,6 +200,9 @@ def verificar_login():
         st.session_state.usuario_logado = None
     
     if not st.session_state.usuario_logado:
+        # Adicionar imagem de fundo
+        add_bg_from_url()
+        
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
         
@@ -271,6 +295,8 @@ def verificar_login():
                     # Mostrar senha atual se existir
                     if "senha_visualizavel" in usuarios[usuario_selecionado]:
                         st.info(f"Senha atual: {usuarios[usuario_selecionado]['senha_visualizavel']}")
+                    else:
+                        st.info("Senha atual: Não disponível")
                     
                     with st.form("form_ajuste_senha_admin"):
                         nova_senha = st.text_input("Nova senha:", type="password", value=SENHA_PADRAO)
@@ -318,6 +344,11 @@ def verificar_login():
                             if len(usuarios) <= 1:
                                 st.error("Não é possível excluir o último usuário!")
                             else:
+                                # Remover da lista de emails autorizados também
+                                email_para_remover = usuarios[usuario_selecionado]["email"]
+                                if email_para_remover in EMAILS_AUTORIZADOS:
+                                    del EMAILS_AUTORIZADOS[email_para_remover]
+                                
                                 del usuarios[usuario_selecionado]
                                 if salvar_usuarios(usuarios):
                                     st.success(f"Usuário {usuario_selecionado} excluído com sucesso!")
@@ -413,7 +444,7 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
         # Se não funcionar, usa abordagem alternativa
         df = df[df.notnull().any(axis=1)]
     
-    # Manter os nomes originais das colunas
+    # Manure os nomes originais das colunas
     df.columns = [str(c).strip() for c in df.columns]
     return df
 
@@ -721,7 +752,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                <strong style'color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
@@ -962,7 +993,7 @@ def main():
     st.markdown(
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
-        <img src="/fotos/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
+        <img src="https://drive.google.com/uc?export=view&id=1yiIjuu2vn6GVKXWXxGuCpRRyHujEDvJw" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
         Versão 1.5.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
