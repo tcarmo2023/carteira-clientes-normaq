@@ -9,6 +9,7 @@ import hashlib
 import json
 from pathlib import Path
 import base64
+import time
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
@@ -108,45 +109,31 @@ def carregar_usuarios():
     usuarios_file = get_usuarios_file()
     
     if not usuarios_file.exists():
-        # Se o arquivo não existe, cria com os usuários padrão mas SEM SOBRESCREVER se já existirem
+        # Se o arquivo não existe, cria com os usuários padrão
         usuarios = {}
         for email, login in EMAILS_AUTORIZADOS.items():
-            # Só adiciona se não existir já no arquivo (para não perder senhas alteradas)
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
                 "primeiro_login": True,
-                "senha_visualizavel": SENHA_PADRAO  # Armazena a senha em texto claro para visualização
+                "senha_visualizavel": SENHA_PADRAO
             }
         salvar_usuarios(usuarios)
         return usuarios
     
     try:
         with open(usuarios_file, 'r', encoding='utf-8') as f:
-            usuarios_existentes = json.load(f)
+            usuarios = json.load(f)
             
-            # Verifica se há usuários novos nos EMAILS_AUTORIZADOS que não estão no arquivo
-            usuarios_para_adicionar = {}
-            for email, login in EMAILS_AUTORIZADOS.items():
-                if login not in usuarios_existentes:
-                    usuarios_para_adicionar[login] = {
-                        "email": email,
-                        "senha_hash": hash_senha(SENHA_PADRAO),
-                        "primeiro_login": True,
-                        "senha_visualizavel": SENHA_PADRAO  # Armazena a senha em texto claro para visualização
-                    }
-            
-            # Se houver usuários novos, adiciona ao dicionário existente
-            if usuarios_para_adicionar:
-                usuarios_existentes.update(usuarios_para_adicionar)
-                salvar_usuarios(usuarios_existentes)
-                return usuarios_existentes
-            else:
-                return usuarios_existentes
+        # Garantir que todos os usuários tenham o campo senha_visualizavel
+        for login, dados in usuarios.items():
+            if "senha_visualizavel" not in dados:
+                usuarios[login]["senha_visualizavel"] = SENHA_PADRAO
+                
+        return usuarios
                 
     except Exception as e:
         st.error(f"Erro ao carregar usuários: {e}")
-        # Retorna dicionário vazio em caso de erro
         return {}
 
 def salvar_usuarios(usuarios):
@@ -182,7 +169,8 @@ def add_bg_from_url():
         f"""
         <style>
         .stApp {{
-            background-image: url("https://drive.google.com/uc?export=view&id=1qm6xtMvMdBQGirrjbc4dwZWBbDtk3YIA");
+            background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), 
+                        url("https://images.unsplash.com/photo-1586074299757-dc655f18518c?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -206,7 +194,7 @@ def verificar_login():
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
         
-        # Abas para Login e Cadastro - ORDEM AJUSTADA
+        # Abas para Login e Cadastro
         tab_login, tab_cadastro, tab_ajuste_senha, tab_excluir_usuario, tab_info = st.tabs([
             "Login", "Cadastrar Usuário", "Ajustes de Senha", "Excluir Usuário", "Informações"
         ])
@@ -227,6 +215,7 @@ def verificar_login():
                             st.session_state.email_usuario = usuarios[login]["email"]
                             st.session_state.primeiro_login = usuarios[login].get("primeiro_login", False)
                             st.success("Acesso permitido!")
+                            time.sleep(1)
                             st.rerun()
                         else:
                             st.error("Senha incorreta.")
@@ -270,7 +259,7 @@ def verificar_login():
                                 "email": email,
                                 "senha_hash": hash_senha(senha_provisoria),
                                 "primeiro_login": True,
-                                "senha_visualizavel": senha_provisoria  # Armazena a senha em texto claro para visualização
+                                "senha_visualizavel": senha_provisoria
                             }
                             if salvar_usuarios(usuarios):
                                 st.success(f"Usuário {login} cadastrado com sucesso!")
@@ -292,8 +281,8 @@ def verificar_login():
                 if usuarios:
                     usuario_selecionado = st.selectbox("Selecione o usuário:", list(usuarios.keys()))
                     
-                    # Mostrar senha atual se existir
-                    if "senha_visualizavel" in usuarios[usuario_selecionado]:
+                    # Mostrar senha atual
+                    if usuario_selecionado and "senha_visualizavel" in usuarios[usuario_selecionado]:
                         st.info(f"Senha atual: {usuarios[usuario_selecionado]['senha_visualizavel']}")
                     else:
                         st.info("Senha atual: Não disponível")
@@ -310,7 +299,7 @@ def verificar_login():
                             else:
                                 usuarios[usuario_selecionado]["senha_hash"] = hash_senha(nova_senha)
                                 usuarios[usuario_selecionado]["primeiro_login"] = resetar_primeiro_login
-                                usuarios[usuario_selecionado]["senha_visualizavel"] = nova_senha  # Armazena a senha em texto claro
+                                usuarios[usuario_selecionado]["senha_visualizavel"] = nova_senha
                                 
                                 if salvar_usuarios(usuarios):
                                     st.success(f"Senha do usuário {usuario_selecionado} alterada com sucesso!")
@@ -344,17 +333,21 @@ def verificar_login():
                             if len(usuarios) <= 1:
                                 st.error("Não é possível excluir o último usuário!")
                             else:
-                                # Remover da lista de emails autorizados também
-                                email_para_remover = usuarios[usuario_selecionado]["email"]
-                                if email_para_remover in EMAILS_AUTORIZADOS:
-                                    del EMAILS_AUTORIZADOS[email_para_remover]
+                                # Criar uma cópia para modificar
+                                novos_usuarios = usuarios.copy()
                                 
-                                del usuarios[usuario_selecionado]
-                                if salvar_usuarios(usuarios):
-                                    st.success(f"Usuário {usuario_selecionado} excluído com sucesso!")
-                                    st.rerun()
+                                # Remover o usuário selecionado
+                                if usuario_selecionado in novos_usuarios:
+                                    del novos_usuarios[usuario_selecionado]
+                                    
+                                    if salvar_usuarios(novos_usuarios):
+                                        st.success(f"Usuário {usuario_selecionado} excluído com sucesso!")
+                                        time.sleep(1)
+                                        st.rerun()
+                                    else:
+                                        st.error("Erro ao excluir usuário.")
                                 else:
-                                    st.error("Erro ao excluir usuário.")
+                                    st.error("Usuário não encontrado!")
                 else:
                     st.warning("Nenhum usuário cadastrado.")
             elif senha_admin != "":
@@ -403,11 +396,12 @@ def alterar_senha_obrigatorio():
                 if st.session_state.usuario_logado in usuarios:
                     usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
                     usuarios[st.session_state.usuario_logado]["primeiro_login"] = False
-                    usuarios[st.session_state.usuario_logado]["senha_visualizavel"] = nova_senha  # Armazena a senha em texto claro
+                    usuarios[st.session_state.usuario_logado]["senha_visualizavel"] = nova_senha
                     
                     if salvar_usuarios(usuarios):
                         st.session_state.primeiro_login = False
                         st.success("Senha alterada com sucesso!")
+                        time.sleep(1)
                         st.rerun()
                     else:
                         st.error("Erro ao salvar nova senha.")
@@ -426,7 +420,7 @@ def get_google_creds():
     return Credentials.from_service_account_info(creds_config, scopes=scopes)
 
 # ——————————————————————————————
-#  FUNÇÃO PARA CARREGAR PLANILHAS (CORRIGIDA)
+#  FUNÇÃO PARA CARREGAR PLANILHAS
 # ——————————————————————————————
 def load_sheet_data(client, spreadsheet_url, sheet_name):
     spreadsheet = client.open_by_url(spreadsheet_url)
@@ -436,15 +430,10 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
         return None
     df = pd.DataFrame(records)
     
-    # Remover linhas completamente vazias (alternativa compatível)
-    try:
-        # Tenta usar dropna com how='all' se disponível
-        df = df.dropna(how='all')
-    except:
-        # Se não funcionar, usa abordagem alternativa
-        df = df[df.notnull().any(axis=1)]
+    # Remover linhas completamente vazias
+    df = df.dropna(how='all')
     
-    # Manure os nomes originais das colunas
+    # Manter os nomes originais das colunas
     df.columns = [str(c).strip() for c in df.columns]
     return df
 
@@ -673,13 +662,14 @@ def main():
                 usuarios = carregar_usuarios()
                 if verificar_senha(senha_atual, usuarios[st.session_state.usuario_logado]["senha_hash"]):
                     if nova_senha != confirmar_senha:
-                        st.error("As novas senhas não coincidem!")
+                        st.error("As novas senha não coincidem!")
                     else:
                         usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
-                        usuarios[st.session_state.usuario_logado]["senha_visualizavel"] = nova_senha  # Armazena a senha em texto claro
+                        usuarios[st.session_state.usuario_logado]["senha_visualizavel"] = nova_senha
                         if salvar_usuarios(usuarios):
                             st.session_state.alterar_senha = False
                             st.success("Senha alterada com sucesso!")
+                            time.sleep(1)
                             st.rerun()
                         else:
                             st.error("Erro ao salvar nova senha.")
@@ -752,7 +742,7 @@ def main():
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
                             <p style='font-size:16px; margin: 10px 0; line-height: 1.4;'>
-                                <strong style'color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
+                                <strong style='color:#2196F3; font-size:14px;'>🏢 REVENDA:</strong><br>
                                 <span style='font-size:18px; font-weight:600;'>{get_value(row, "Revenda")}</span>
                             </p>
                             <hr style='border: 0.5px solid #444; margin: 15px 0;'>
@@ -827,16 +817,9 @@ def main():
                             cols_ordenadas = ["N°", "Nº CLIENTE", "CLIENTES"] + [col for col in maquinas_cliente.columns if col not in ["N°", "Nº CLIENTE", "CLIENTES"]]
                             maquinas_cliente = maquinas_cliente[cols_ordenadas]
 
-                            # Remover colunas vazias ou sem nome (incluindo a primeira coluna sem nome)
+                            # Remover colunas vazias ou sem nome
                             maquinas_cliente = maquinas_cliente.loc[:, ~maquinas_cliente.columns.str.contains('^Unnamed', na=False)]
                             maquinas_cliente = maquinas_cliente.loc[:, maquinas_cliente.columns != '']
-                            # Remover a primeira coluna se estiver vazia (índice antigo)
-                            if maquinas_cliente.iloc[:, 0].name == 'N°':
-                                # Já está correto, não fazer nada
-                                pass
-                            else:
-                                # Remover a primeira coluna se não for a coluna N°
-                                maquinas_cliente = maquinas_cliente.iloc[:, 1:]
 
                             # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
@@ -993,7 +976,7 @@ def main():
     st.markdown(
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
-        <img src="https://drive.google.com/uc?export=view&id=1yiIjuu2vn6GVKXWXxGuCpRRyHujEDvJw" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
+        <img src="https://i.ibb.co/6nLf2yC/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
         Versão 1.5.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
