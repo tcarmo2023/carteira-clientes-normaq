@@ -183,7 +183,9 @@ def verificar_login():
         st.markdown("---")
         
         # Abas para Login e Cadastro - ORDEM AJUSTADA
-        tab_login, tab_cadastro, tab_ajuste_senha, tab_info = st.tabs(["Login", "Cadastrar Usuário", "Ajustes de Senha", "Informações"])
+        tab_login, tab_cadastro, tab_ajuste_senha, tab_excluir_usuario, tab_info = st.tabs([
+            "Login", "Cadastrar Usuário", "Ajustes de Senha", "Excluir Usuário", "Informações"
+        ])
         
         with tab_login:
             col1, col2, col3 = st.columns([1, 2, 1])
@@ -243,10 +245,12 @@ def verificar_login():
                             usuarios[login] = {
                                 "email": email,
                                 "senha_hash": hash_senha(senha_provisoria),
-                                "primeiro_login": True
+                                "primeiro_login": True,
+                                "senha_visualizavel": senha_provisoria  # Armazena a senha em texto claro para visualização
                             }
                             if salvar_usuarios(usuarios):
                                 st.success(f"Usuário {login} cadastrado com sucesso!")
+                                st.info(f"Senha provisória: {senha_provisoria}")
                             else:
                                 st.error("Erro ao salvar usuário.")
             elif senha_admin != "":
@@ -264,6 +268,10 @@ def verificar_login():
                 if usuarios:
                     usuario_selecionado = st.selectbox("Selecione o usuário:", list(usuarios.keys()))
                     
+                    # Mostrar senha atual se existir
+                    if "senha_visualizavel" in usuarios[usuario_selecionado]:
+                        st.info(f"Senha atual: {usuarios[usuario_selecionado]['senha_visualizavel']}")
+                    
                     with st.form("form_ajuste_senha_admin"):
                         nova_senha = st.text_input("Nova senha:", type="password", value=SENHA_PADRAO)
                         resetar_primeiro_login = st.checkbox("Forçar alteração de senha no próximo login", value=True)
@@ -276,12 +284,46 @@ def verificar_login():
                             else:
                                 usuarios[usuario_selecionado]["senha_hash"] = hash_senha(nova_senha)
                                 usuarios[usuario_selecionado]["primeiro_login"] = resetar_primeiro_login
+                                usuarios[usuario_selecionado]["senha_visualizavel"] = nova_senha  # Armazena a senha em texto claro
                                 
                                 if salvar_usuarios(usuarios):
                                     st.success(f"Senha do usuário {usuario_selecionado} alterada com sucesso!")
                                     st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
+                                    st.info(f"Nova senha: {nova_senha}")
                                 else:
                                     st.error("Erro ao salvar nova senha.")
+                else:
+                    st.warning("Nenhum usuário cadastrado.")
+            elif senha_admin != "":
+                st.error("Senha de administrador incorreta!")
+        
+        with tab_excluir_usuario:
+            st.subheader("Excluir Usuário - Administrador")
+            
+            # Verificar senha de administrador
+            senha_admin = st.text_input("Senha de administrador:", type="password", key="senha_admin_excluir")
+            
+            if senha_admin == SENHA_ADMIN:
+                usuarios = carregar_usuarios()
+                
+                if usuarios:
+                    usuario_selecionado = st.selectbox("Selecione o usuário para excluir:", list(usuarios.keys()))
+                    
+                    if usuario_selecionado:
+                        st.warning(f"Tem certeza que deseja excluir o usuário {usuario_selecionado}?")
+                        st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
+                        
+                        if st.button("Confirmar Exclusão", type="secondary"):
+                            # Verificar se não é o último usuário
+                            if len(usuarios) <= 1:
+                                st.error("Não é possível excluir o último usuário!")
+                            else:
+                                del usuarios[usuario_selecionado]
+                                if salvar_usuarios(usuarios):
+                                    st.success(f"Usuário {usuario_selecionado} excluído com sucesso!")
+                                    st.rerun()
+                                else:
+                                    st.error("Erro ao excluir usuário.")
                 else:
                     st.warning("Nenhum usuário cadastrado.")
             elif senha_admin != "":
@@ -330,6 +372,7 @@ def alterar_senha_obrigatorio():
                 if st.session_state.usuario_logado in usuarios:
                     usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
                     usuarios[st.session_state.usuario_logado]["primeiro_login"] = False
+                    usuarios[st.session_state.usuario_logado]["senha_visualizavel"] = nova_senha  # Armazena a senha em texto claro
                     
                     if salvar_usuarios(usuarios):
                         st.session_state.primeiro_login = False
@@ -602,6 +645,7 @@ def main():
                         st.error("As novas senhas não coincidem!")
                     else:
                         usuarios[st.session_state.usuario_logado]["senha_hash"] = hash_senha(nova_senha)
+                        usuarios[st.session_state.usuario_logado]["senha_visualizavel"] = nova_senha  # Armazena a senha em texto claro
                         if salvar_usuarios(usuarios):
                             st.session_state.alterar_senha = False
                             st.success("Senha alterada com sucesso!")
@@ -913,11 +957,12 @@ def main():
         elif senha != "":
             st.error("Senha incorreta!")
 
-    # Rodapé
+    # Rodapé com logo
     st.markdown("---")
     st.markdown(
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
+        <img src="/fotos/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
         Versão 1.5.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
