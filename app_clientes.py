@@ -170,7 +170,7 @@ def add_bg_from_url():
         <style>
         .stApp {{
             background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), 
-                        url("https://images.unsplash.com/photo-1586074299757-dc655f18518c?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80");
+                        url("https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/46ebc6d44acf46c6c42d04bba2921ba340149f78/fotos/fundo.png");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -976,7 +976,7 @@ def main():
     st.markdown(
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
-        <img src="https://i.ibb.co/6nLf2yC/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
+        <img src="https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/21ce598e833a305c35fb84e8207f66d133f09a39/fotos/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
         Versão 1.5.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
@@ -989,3 +989,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
