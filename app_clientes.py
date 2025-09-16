@@ -170,7 +170,7 @@ def add_bg_from_url():
         <style>
         .stApp {{
             background: linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), 
-                        url("https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/46ebc6d44acf46c6c42d04bba2921ba340149f78/fotos/fundo.png");
+                        url("https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/a7f3e803ece89ccf58ff204753b272ccfe910dea/fotos/Imagem2.png");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -989,4 +989,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
