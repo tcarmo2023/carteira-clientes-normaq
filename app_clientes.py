@@ -8,6 +8,7 @@ import re
 import hashlib
 import json
 from pathlib import Path
+import base64
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
@@ -96,6 +97,67 @@ OPCOES_CONSULTOR = [
 ]
 
 # ——————————————————————————————
+#  FUNÇÕES PARA IMAGENS
+# ——————————————————————————————
+def get_base64_image(image_path):
+    """Converte imagem para base64"""
+    try:
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode()
+    except:
+        return None
+
+def set_background_image():
+    """Define imagem de fundo"""
+    background_image = "fotos/fundo.jpg"  # Ajuste o caminho conforme necessário
+    base64_bg = get_base64_image(background_image)
+    
+    if base64_bg:
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/jpg;base64,{base64_bg}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            
+            /* Ajuste para garantir legibilidade do conteúdo */
+            .main .block-container {{
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 10px;
+                padding: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 2rem;
+            }}
+            
+            /* Ajuste para sidebar */
+            .css-1d391kg {{
+                background-color: rgba(255, 255, 255, 0.95) !important;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+def display_logo_footer():
+    """Exibe logo no rodapé"""
+    logo_path = "fotos/logo.png"  # Ajuste o caminho conforme necessário
+    base64_logo = get_base64_image(logo_path)
+    
+    if base64_logo:
+        st.markdown(
+            f"""
+            <div style='text-align: center; margin-top: 30px;'>
+                <img src="data:image/png;base64,{base64_logo}" alt="Logo NORMAQ" style='height: 50px;'>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+# ——————————————————————————————
 #  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS (CORRIGIDAS)
 # ——————————————————————————————
 def get_usuarios_file():
@@ -113,6 +175,7 @@ def carregar_usuarios():
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
+                "senha_visualizavel": SENHA_PADRAO,  # Senha em texto claro para visualização
                 "primeiro_login": True,
                 "data_criacao": datetime.now().isoformat(),
                 "data_ultima_alteracao": datetime.now().isoformat()
@@ -137,9 +200,10 @@ def carregar_usuarios():
                 dados_usuario["data_ultima_alteracao"] = datetime.now().isoformat()
                 usuarios_atualizados = True
             
-            # Remover campo de senha em texto claro se existir (por segurança)
-            if "senha_visualizavel" in dados_usuario:
-                del dados_usuario["senha_visualizavel"]
+            # Garantir que existe senha visualizável
+            if "senha_visualizavel" not in dados_usuario:
+                # Se não existe, usar a senha padrão (em casos de migração)
+                dados_usuario["senha_visualizavel"] = SENHA_PADRAO
                 usuarios_atualizados = True
         
         # Adicionar novos usuários que não existem no arquivo
@@ -148,6 +212,7 @@ def carregar_usuarios():
                 usuarios_existentes[login] = {
                     "email": email,
                     "senha_hash": hash_senha(SENHA_PADRAO),
+                    "senha_visualizavel": SENHA_PADRAO,
                     "primeiro_login": True,
                     "data_criacao": datetime.now().isoformat(),
                     "data_ultima_alteracao": datetime.now().isoformat()
@@ -168,6 +233,7 @@ def carregar_usuarios():
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
+                "senha_visualizavel": SENHA_PADRAO,
                 "primeiro_login": True,
                 "data_criacao": datetime.now().isoformat(),
                 "data_ultima_alteracao": datetime.now().isoformat()
@@ -215,12 +281,9 @@ def alterar_senha_usuario(login, nova_senha):
     
     if login in usuarios:
         usuarios[login]["senha_hash"] = hash_senha(nova_senha)
+        usuarios[login]["senha_visualizavel"] = nova_senha  # Atualiza senha visualizável
         usuarios[login]["primeiro_login"] = False
         usuarios[login]["data_ultima_alteracao"] = datetime.now().isoformat()
-        
-        # Remover senha em texto claro se existir
-        if "senha_visualizavel" in usuarios[login]:
-            del usuarios[login]["senha_visualizavel"]
             
         return salvar_usuarios(usuarios)
     return False
@@ -233,6 +296,9 @@ def verificar_login():
         st.session_state.usuario_logado = None
     
     if not st.session_state.usuario_logado:
+        # Aplicar imagem de fundo na página de login
+        set_background_image()
+        
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
         
@@ -299,6 +365,7 @@ def verificar_login():
                             usuarios[login] = {
                                 "email": email,
                                 "senha_hash": hash_senha(senha_provisoria),
+                                "senha_visualizavel": senha_provisoria,
                                 "primeiro_login": True,
                                 "data_criacao": datetime.now().isoformat(),
                                 "data_ultima_alteracao": datetime.now().isoformat()
@@ -323,6 +390,11 @@ def verificar_login():
                 if usuarios:
                     usuario_selecionado = st.selectbox("Selecione o usuário:", list(usuarios.keys()))
                     
+                    # Mostrar senha atual em texto claro
+                    if usuario_selecionado:
+                        senha_atual = usuarios[usuario_selecionado].get("senha_visualizavel", "Não disponível")
+                        st.info(f"**Senha atual do usuário:** `{senha_atual}`")
+                    
                     with st.form("form_ajuste_senha_admin"):
                         nova_senha = st.text_input("Nova senha:", type="password", value=SENHA_PADRAO)
                         resetar_primeiro_login = st.checkbox("Forçar alteração de senha no próximo login", value=True)
@@ -338,6 +410,7 @@ def verificar_login():
                                     if salvar_usuarios(usuarios):
                                         st.success(f"Senha do usuário {usuario_selecionado} alterada com sucesso!")
                                         st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
+                                        st.info(f"**Nova senha:** `{nova_senha}`")
                                     else:
                                         st.error("Erro ao salvar configurações do usuário.")
                                 else:
@@ -360,8 +433,11 @@ def verificar_login():
                     usuario_selecionado = st.selectbox("Selecione o usuário para excluir:", list(usuarios.keys()))
                     
                     if usuario_selecionado:
+                        # Mostrar informações do usuário
+                        senha_atual = usuarios[usuario_selecionado].get("senha_visualizavel", "Não disponível")
                         st.warning(f"Tem certeza que deseja excluir o usuário {usuario_selecionado}?")
-                        st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
+                        st.info(f"**Email:** {usuarios[usuario_selecionado]['email']}")
+                        st.info(f"**Senha atual:** `{senha_atual}`")
                         
                         if st.button("Confirmar Exclusão", type="secondary"):
                             # Verificar se não é o último usuário
@@ -393,7 +469,7 @@ def verificar_login():
             Segunda a sexta, 8h às 18h
             
             **Sistema de senhas:**  
-            As senhas agora são armazenadas de forma segura e permanente.
+            As senhas são armazenadas de forma segura e permanente.
             """)
         
         st.stop()
@@ -589,6 +665,21 @@ def inject_protection_css():
         opacity: 0 !important;
     }
     
+    /* Ajustes para melhor legibilidade com fundo */
+    .main .block-container {
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 10px;
+        padding: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Ajuste para sidebar */
+    .css-1d391kg {
+        background-color: rgba(255, 255, 255, 0.95) !important;
+    }
+    
     /* Restaurar fontes e estilos */
     .stApp {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -644,6 +735,9 @@ def inject_protection_css():
 def main():
     # Verificar login antes de mostrar qualquer conteúdo
     verificar_login()
+    
+    # Aplicar imagem de fundo
+    set_background_image()
     
     # Injetar CSS + JS de proteção
     inject_protection_css()
@@ -1000,12 +1094,12 @@ def main():
 
     # Rodapé com logo
     st.markdown("---")
+    display_logo_footer()
     st.markdown(
         f"""
-        <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
-        <img src="/fotos/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
+        <div style='text-align: center; font-size: 11px; color: #666; margin-top: 10px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.5.1 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.5.2 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
         Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 <a href='https://wa.me/5581995143900' style='color: #666;'>(81) 99514-3900</a>
         </div>
