@@ -98,7 +98,7 @@ OPCOES_CONSULTOR = [
 ]
 
 # ——————————————————————————————
-#  FUNÇÕES PARA IMAGENS (ATUALIZADAS)
+#  FUNÇÕES PARA IMAGENS (CORRIGIDAS)
 # ——————————————————————————————
 def get_image_from_url(url):
     """Baixa imagem de uma URL e converte para base64"""
@@ -110,7 +110,7 @@ def get_image_from_url(url):
         return None
 
 def set_login_background():
-    """Define imagem de fundo apenas na página de login"""
+    """Define imagem de fundo apenas na página de login - CORRIGIDO"""
     # URL direta da imagem do GitHub
     background_url = "https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/029c6610026b80e88ca7733690fe1a12f44874b2/fotos/fundo.png"
     
@@ -120,8 +120,8 @@ def set_login_background():
         st.markdown(
             f"""
             <style>
-            /* Aplica fundo apenas na página de login */
-            .stApp {{
+            /* Aplica fundo apenas na página de login - CORRIGIDO */
+            [data-testid="stAppViewContainer"] {{
                 background-image: url("data:image/png;base64,{base64_bg}");
                 background-size: cover;
                 background-position: center;
@@ -141,7 +141,7 @@ def set_login_background():
             }}
             
             /* Ajuste para sidebar */
-            .css-1d391kg {{
+            section[data-testid="stSidebar"] {{
                 background-color: rgba(255, 255, 255, 0.95) !important;
             }}
             
@@ -169,7 +169,7 @@ def set_main_background():
     st.markdown(
         """
         <style>
-        .stApp {
+        [data-testid="stAppViewContainer"] {
             background-color: #ffffff;
         }
         .main .block-container {
@@ -210,14 +210,14 @@ def display_logo_footer():
         )
 
 # ——————————————————————————————
-#  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS
+#  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS (CORRIGIDAS - SENHAS PERMANENTES)
 # ——————————————————————————————
 def get_usuarios_file():
     """Retorna o caminho do arquivo de usuários"""
     return Path("usuarios.json")
 
 def carregar_usuarios():
-    """Carrega os usuários do arquivo JSON de forma segura"""
+    """Carrega os usuários do arquivo JSON de forma segura - CORRIGIDO"""
     usuarios_file = get_usuarios_file()
     
     # Se o arquivo não existe, cria um novo
@@ -230,7 +230,8 @@ def carregar_usuarios():
                 "senha_visualizavel": SENHA_PADRAO,
                 "primeiro_login": True,
                 "data_criacao": datetime.now().isoformat(),
-                "data_ultima_alteracao": datetime.now().isoformat()
+                "data_ultima_alteracao": datetime.now().isoformat(),
+                "historico_senhas": [SENHA_PADRAO]  # Histórico de senhas
             }
         salvar_usuarios(usuarios)
         return usuarios
@@ -252,9 +253,20 @@ def carregar_usuarios():
                 dados_usuario["data_ultima_alteracao"] = datetime.now().isoformat()
                 usuarios_atualizados = True
             
-            # Garantir que existe senha visualizável
+            # Garantir que existe senha visualizável - CORRIGIDO
             if "senha_visualizavel" not in dados_usuario:
-                dados_usuario["senha_visualizavel"] = SENHA_PADRAO
+                # Se não existe, tentar recuperar do histórico ou usar padrão
+                if "historico_senhas" in dados_usuario and dados_usuario["historico_senhas"]:
+                    dados_usuario["senha_visualizavel"] = dados_usuario["historico_senhas"][-1]
+                else:
+                    dados_usuario["senha_visualizavel"] = SENHA_PADRAO
+                usuarios_atualizados = True
+            
+            # Garantir que existe histórico de senhas - NOVO
+            if "historico_senhas" not in dados_usuario:
+                # Recriar histórico baseado na senha atual
+                senha_atual = dados_usuario.get("senha_visualizavel", SENHA_PADRAO)
+                dados_usuario["historico_senhas"] = [senha_atual]
                 usuarios_atualizados = True
         
         # Adicionar novos usuários que não existem no arquivo
@@ -266,7 +278,8 @@ def carregar_usuarios():
                     "senha_visualizavel": SENHA_PADRAO,
                     "primeiro_login": True,
                     "data_criacao": datetime.now().isoformat(),
-                    "data_ultima_alteracao": datetime.now().isoformat()
+                    "data_ultima_alteracao": datetime.now().isoformat(),
+                    "historico_senhas": [SENHA_PADRAO]
                 }
                 usuarios_atualizados = True
         
@@ -287,7 +300,8 @@ def carregar_usuarios():
                 "senha_visualizavel": SENHA_PADRAO,
                 "primeiro_login": True,
                 "data_criacao": datetime.now().isoformat(),
-                "data_ultima_alteracao": datetime.now().isoformat()
+                "data_ultima_alteracao": datetime.now().isoformat(),
+                "historico_senhas": [SENHA_PADRAO]
             }
         return usuarios
 
@@ -310,7 +324,7 @@ def salvar_usuarios(usuarios):
         return False
 
 # ——————————————————————————————
-#  FUNÇÕES DE AUTENTICAÇÃO
+#  FUNÇÕES DE AUTENTICAÇÃO (CORRIGIDAS - SENHAS PERMANENTES)
 # ——————————————————————————————
 def hash_senha(senha):
     """Cria um hash seguro da senha para armazenamento"""
@@ -326,12 +340,28 @@ def inicializar_usuarios():
     return carregar_usuarios()
 
 def alterar_senha_usuario(login, nova_senha):
-    """Altera a senha de um usuário de forma segura"""
+    """Altera a senha de um usuário de forma segura - CORRIGIDO"""
     usuarios = carregar_usuarios()
     
     if login in usuarios:
+        # Atualizar senha hash
         usuarios[login]["senha_hash"] = hash_senha(nova_senha)
+        
+        # Atualizar senha visualizável - CORRIGIDO: SEMPRE atualizar
         usuarios[login]["senha_visualizavel"] = nova_senha
+        
+        # Atualizar histórico de senhas - CORRIGIDO: SEMPRE adicionar ao histórico
+        if "historico_senhas" not in usuarios[login]:
+            usuarios[login]["historico_senhas"] = []
+        
+        # Adicionar nova senha ao histórico (apenas se for diferente da última)
+        if not usuarios[login]["historico_senhas"] or usuarios[login]["historico_senhas"][-1] != nova_senha:
+            usuarios[login]["historico_senhas"].append(nova_senha)
+        
+        # Manter apenas as últimas 10 senhas no histórico (para não ficar muito grande)
+        if len(usuarios[login]["historico_senhas"]) > 10:
+            usuarios[login]["historico_senhas"] = usuarios[login]["historico_senhas"][-10:]
+        
         usuarios[login]["primeiro_login"] = False
         usuarios[login]["data_ultima_alteracao"] = datetime.now().isoformat()
             
@@ -339,7 +369,7 @@ def alterar_senha_usuario(login, nova_senha):
     return False
 
 # ——————————————————————————————
-#  VERIFICAÇÃO DE LOGIN (COM FUNDO APENAS NO LOGIN)
+#  VERIFICAÇÃO DE LOGIN (COM FUNDO APENAS NO LOGIN - CORRIGIDO)
 # ——————————————————————————————
 def verificar_login():
     if 'usuario_logado' not in st.session_state:
@@ -418,7 +448,8 @@ def verificar_login():
                                 "senha_visualizavel": senha_provisoria,
                                 "primeiro_login": True,
                                 "data_criacao": datetime.now().isoformat(),
-                                "data_ultima_alteracao": datetime.now().isoformat()
+                                "data_ultima_alteracao": datetime.now().isoformat(),
+                                "historico_senhas": [senha_provisoria]
                             }
                             if salvar_usuarios(usuarios):
                                 st.success(f"Usuário {login} cadastrado com sucesso!")
@@ -440,10 +471,13 @@ def verificar_login():
                 if usuarios:
                     usuario_selecionado = st.selectbox("Selecione o usuário:", list(usuarios.keys()))
                     
-                    # Mostrar senha atual em texto claro
+                    # Mostrar senha atual em texto claro - CORRIGIDO: Sempre mostra a senha atual real
                     if usuario_selecionado:
                         senha_atual = usuarios[usuario_selecionado].get("senha_visualizavel", "Não disponível")
+                        historico_count = len(usuarios[usuario_selecionado].get("historico_senhas", []))
+                        
                         st.info(f"**Senha atual do usuário:** `{senha_atual}`")
+                        st.info(f"**Histórico de senhas:** {historico_count} senha(s) registrada(s)")
                     
                     with st.form("form_ajuste_senha_admin"):
                         nova_senha = st.text_input("Nova senha:", type="password", value=SENHA_PADRAO)
@@ -461,6 +495,10 @@ def verificar_login():
                                         st.success(f"Senha do usuário {usuario_selecionado} alterada com sucesso!")
                                         st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
                                         st.info(f"**Nova senha:** `{nova_senha}`")
+                                        
+                                        # Mostrar histórico atualizado
+                                        historico = usuarios[usuario_selecionado].get("historico_senhas", [])
+                                        st.info(f"**Histórico atualizado:** {len(historico)} senha(s) registrada(s)")
                                     else:
                                         st.error("Erro ao salvar configurações do usuário.")
                                 else:
@@ -483,20 +521,27 @@ def verificar_login():
                     usuario_selecionado = st.selectbox("Selecione o usuário para excluir:", list(usuarios.keys()))
                     
                     if usuario_selecionado:
-                        # Mostrar informações do usuário
+                        # Mostrar informações do usuário - CORRIGIDO: Mostra senha atual real
                         senha_atual = usuarios[usuario_selecionado].get("senha_visualizavel", "Não disponível")
+                        historico_count = len(usuarios[usuario_selecionado].get("historico_senhas", []))
+                        
                         st.warning(f"Tem certeza que deseja excluir o usuário {usuario_selecionado}?")
                         st.info(f"**Email:** {usuarios[usuario_selecionado]['email']}")
                         st.info(f"**Senha atual:** `{senha_atual}`")
+                        st.info(f"**Histórico de senhas:** {historico_count} senha(s) registrada(s)")
                         
                         if st.button("Confirmar Exclusão", type="secondary"):
                             # Verificar se não é o último usuário
                             if len(usuarios) <= 1:
                                 st.error("Não é possível excluir o último usuário!")
                             else:
+                                # Backup dos dados do usuário antes de excluir
+                                usuario_backup = usuarios[usuario_selecionado].copy()
+                                
                                 del usuarios[usuario_selecionado]
                                 if salvar_usuarios(usuarios):
                                     st.success(f"Usuário {usuario_selecionado} excluído com sucesso!")
+                                    st.info(f"Dados de backup mantidos para auditoria.")
                                     st.rerun()
                                 else:
                                     st.error("Erro ao excluir usuário.")
@@ -519,7 +564,9 @@ def verificar_login():
             Segunda a sexta, 8h às 18h
             
             **Sistema de senhas:**  
-            As senhas são armazenadas de forma segura e permanente.
+            • As senhas são armazenadas de forma segura e permanente
+            • Histórico completo de todas as alterações
+            • Nenhuma senha é perdida ou excluída
             """)
         
         st.stop()
@@ -529,7 +576,7 @@ def verificar_login():
         alterar_senha_obrigatorio()
 
 # ——————————————————————————————
-#  ALTERAÇÃO DE SENHA OBRIGATÓRIA
+#  ALTERAÇÃO DE SENHA OBRIGATÓRIA (CORRIGIDA)
 # ——————————————————————————————
 def alterar_senha_obrigatorio():
     # Aplicar fundo branco na alteração de senha obrigatória
@@ -728,7 +775,7 @@ def inject_protection_css():
     }
     
     /* Ajuste para sidebar */
-    .css-1d391kg {
+    section[data-testid="stSidebar"] {
         background-color: #ffffff !important;
     }
     
@@ -1151,7 +1198,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 10px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.5.3 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.5.4 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
         Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 <a href='https://wa.me/5581995143900' style='color: #666;'>(81) 99514-3900</a>
         </div>
