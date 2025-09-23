@@ -9,6 +9,7 @@ import hashlib
 import json
 from pathlib import Path
 import base64
+import requests
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
@@ -97,55 +98,96 @@ OPCOES_CONSULTOR = [
 ]
 
 # ——————————————————————————————
-#  FUNÇÕES PARA IMAGENS
+#  FUNÇÕES PARA IMAGENS (ATUALIZADAS)
 # ——————————————————————————————
-def get_base64_image(image_path):
-    """Converte imagem para base64"""
+def get_image_from_url(url):
+    """Baixa imagem de uma URL e converte para base64"""
     try:
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode()
+        response = requests.get(url)
+        response.raise_for_status()
+        return base64.b64encode(response.content).decode()
     except:
         return None
 
-def set_background_image():
-    """Define imagem de fundo"""
-    background_image = "fotos/fundo.jpg"  # Ajuste o caminho conforme necessário
-    base64_bg = get_base64_image(background_image)
+def set_login_background():
+    """Define imagem de fundo apenas na página de login"""
+    # URL direta da imagem do GitHub
+    background_url = "https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/029c6610026b80e88ca7733690fe1a12f44874b2/fotos/fundo.png"
+    
+    base64_bg = get_image_from_url(background_url)
     
     if base64_bg:
         st.markdown(
             f"""
             <style>
+            /* Aplica fundo apenas na página de login */
             .stApp {{
-                background-image: url("data:image/jpg;base64,{base64_bg}");
+                background-image: url("data:image/png;base64,{base64_bg}");
                 background-size: cover;
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
             }}
             
-            /* Ajuste para garantir legibilidade do conteúdo */
+            /* Container principal do login - fundo branco semi-transparente */
             .main .block-container {{
                 background-color: rgba(255, 255, 255, 0.95);
-                border-radius: 10px;
+                border-radius: 15px;
                 padding: 2rem;
                 margin-top: 2rem;
                 margin-bottom: 2rem;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
             }}
             
             /* Ajuste para sidebar */
             .css-1d391kg {{
                 background-color: rgba(255, 255, 255, 0.95) !important;
             }}
+            
+            /* Ajuste para abas */
+            .stTabs [data-baseweb="tab-list"] {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 10px;
+                padding: 5px;
+            }}
+            
+            /* Ajuste para conteúdo dentro das abas */
+            .stTabContent {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 10px;
+                padding: 15px;
+                margin-top: 10px;
+            }}
             </style>
             """,
             unsafe_allow_html=True
         )
 
+def set_main_background():
+    """Define fundo branco para a página principal"""
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-color: #ffffff;
+        }
+        .main .block-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 2rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 def display_logo_footer():
     """Exibe logo no rodapé"""
-    logo_path = "fotos/logo.png"  # Ajuste o caminho conforme necessário
-    base64_logo = get_base64_image(logo_path)
+    # URL da logo do GitHub (se existir)
+    logo_url = "https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/main/fotos/logo.png"
+    
+    base64_logo = get_image_from_url(logo_url)
     
     if base64_logo:
         st.markdown(
@@ -156,9 +198,19 @@ def display_logo_footer():
             """,
             unsafe_allow_html=True
         )
+    else:
+        # Fallback - exibe texto se a logo não carregar
+        st.markdown(
+            """
+            <div style='text-align: center; margin-top: 30px;'>
+                <span style='font-size: 24px; font-weight: bold; color: #1e3a8a;'>NORMAQ JCB</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # ——————————————————————————————
-#  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS (CORRIGIDAS)
+#  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS
 # ——————————————————————————————
 def get_usuarios_file():
     """Retorna o caminho do arquivo de usuários"""
@@ -175,7 +227,7 @@ def carregar_usuarios():
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
-                "senha_visualizavel": SENHA_PADRAO,  # Senha em texto claro para visualização
+                "senha_visualizavel": SENHA_PADRAO,
                 "primeiro_login": True,
                 "data_criacao": datetime.now().isoformat(),
                 "data_ultima_alteracao": datetime.now().isoformat()
@@ -202,7 +254,6 @@ def carregar_usuarios():
             
             # Garantir que existe senha visualizável
             if "senha_visualizavel" not in dados_usuario:
-                # Se não existe, usar a senha padrão (em casos de migração)
                 dados_usuario["senha_visualizavel"] = SENHA_PADRAO
                 usuarios_atualizados = True
         
@@ -259,11 +310,10 @@ def salvar_usuarios(usuarios):
         return False
 
 # ——————————————————————————————
-#  FUNÇÕES DE AUTENTICAÇÃO (CORRIGIDAS)
+#  FUNÇÕES DE AUTENTICAÇÃO
 # ——————————————————————————————
 def hash_senha(senha):
     """Cria um hash seguro da senha para armazenamento"""
-    # Adiciona um salt básico para maior segurança
     salt = "normaq_jcb_2025_salt"
     return hashlib.sha256((senha + salt).encode()).hexdigest()
 
@@ -281,7 +331,7 @@ def alterar_senha_usuario(login, nova_senha):
     
     if login in usuarios:
         usuarios[login]["senha_hash"] = hash_senha(nova_senha)
-        usuarios[login]["senha_visualizavel"] = nova_senha  # Atualiza senha visualizável
+        usuarios[login]["senha_visualizavel"] = nova_senha
         usuarios[login]["primeiro_login"] = False
         usuarios[login]["data_ultima_alteracao"] = datetime.now().isoformat()
             
@@ -289,15 +339,15 @@ def alterar_senha_usuario(login, nova_senha):
     return False
 
 # ——————————————————————————————
-#  VERIFICAÇÃO DE LOGIN (CORRIGIDA)
+#  VERIFICAÇÃO DE LOGIN (COM FUNDO APENAS NO LOGIN)
 # ——————————————————————————————
 def verificar_login():
     if 'usuario_logado' not in st.session_state:
         st.session_state.usuario_logado = None
     
     if not st.session_state.usuario_logado:
-        # Aplicar imagem de fundo na página de login
-        set_background_image()
+        # Aplicar imagem de fundo apenas na página de login
+        set_login_background()
         
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
@@ -479,9 +529,12 @@ def verificar_login():
         alterar_senha_obrigatorio()
 
 # ——————————————————————————————
-#  ALTERAÇÃO DE SENHA OBRIGATÓRIA (CORRIGIDA)
+#  ALTERAÇÃO DE SENHA OBRIGATÓRIA
 # ——————————————————————————————
 def alterar_senha_obrigatorio():
+    # Aplicar fundo branco na alteração de senha obrigatória
+    set_main_background()
+    
     st.title("🔒 Alteração de Senha Obrigatória")
     st.warning("É necessário alterar sua senha antes de acessar o sistema.")
     
@@ -665,19 +718,18 @@ def inject_protection_css():
         opacity: 0 !important;
     }
     
-    /* Ajustes para melhor legibilidade com fundo */
+    /* Ajustes para melhor legibilidade */
     .main .block-container {
-        background-color: rgba(255, 255, 255, 0.95);
+        background-color: #ffffff;
         border-radius: 10px;
         padding: 2rem;
         margin-top: 2rem;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     
     /* Ajuste para sidebar */
     .css-1d391kg {
-        background-color: rgba(255, 255, 255, 0.95) !important;
+        background-color: #ffffff !important;
     }
     
     /* Restaurar fontes e estilos */
@@ -736,8 +788,8 @@ def main():
     # Verificar login antes de mostrar qualquer conteúdo
     verificar_login()
     
-    # Aplicar imagem de fundo
-    set_background_image()
+    # Aplicar fundo branco na página principal
+    set_main_background()
     
     # Injetar CSS + JS de proteção
     inject_protection_css()
@@ -1099,7 +1151,7 @@ def main():
         f"""
         <div style='text-align: center; font-size: 11px; color: #666; margin-top: 10px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.5.2 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.5.3 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
         Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 <a href='https://wa.me/5581995143900' style='color: #666;'>(81) 99514-3900</a>
         </div>
