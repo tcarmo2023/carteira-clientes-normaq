@@ -8,6 +8,8 @@ import re
 import hashlib
 import json
 from pathlib import Path
+import base64
+import requests
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
@@ -94,6 +96,120 @@ OPCOES_CONSULTOR = [
     "Francisco",
     "Aliny"
 ]
+
+# ——————————————————————————————
+#  FUNÇÕES PARA IMAGENS
+# ——————————————————————————————
+def get_image_from_url(url):
+    """Baixa imagem de uma URL e converte para base64"""
+    try:
+        # Converte URL do GitHub para raw URL
+        if 'github.com' in url and '/blob/' in url:
+            url = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
+        
+        response = requests.get(url)
+        response.raise_for_status()
+        return base64.b64encode(response.content).decode()
+    except Exception as e:
+        print(f"Erro ao carregar imagem: {e}")
+        return None
+
+def set_login_background():
+    """Define imagem de fundo para a página de login"""
+    background_url = "https://github.com/tcarmo2023/carteira-clientes-normaq/blob/4a203c1726aa658d41eeb9e98e6f806b3e246a18/fotos/fundo.png"
+    
+    base64_bg = get_image_from_url(background_url)
+    
+    if base64_bg:
+        st.markdown(
+            f"""
+            <style>
+            [data-testid="stAppViewContainer"] {{
+                background-image: url("data:image/png;base64,{base64_bg}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            
+            /* Container principal do login - fundo branco semi-transparente */
+            .main .block-container {{
+                background-color: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
+                padding: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 2rem;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+            }}
+            
+            /* Ajuste para sidebar */
+            section[data-testid="stSidebar"] {{
+                background-color: rgba(255, 255, 255, 0.95) !important;
+            }}
+            
+            /* Ajuste para abas */
+            .stTabs [data-baseweb="tab-list"] {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 10px;
+                padding: 5px;
+            }}
+            
+            /* Ajuste para conteúdo dentro das abas */
+            .stTabContent {{
+                background-color: rgba(255, 255, 255, 0.9);
+                border-radius: 10px;
+                padding: 15px;
+                margin-top: 10px;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+def set_main_background():
+    """Define fundo branco para a página principal"""
+    st.markdown(
+        """
+        <style>
+        [data-testid="stAppViewContainer"] {
+            background-color: #ffffff;
+        }
+        .main .block-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 2rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+def display_logo_footer():
+    """Exibe logo no rodapé"""
+    logo_url = "https://github.com/tcarmo2023/carteira-clientes-normaq/blob/4a203c1726aa658d41eeb9e98e6f806b3e246a18/fotos/logo.png"
+    
+    base64_logo = get_image_from_url(logo_url)
+    
+    if base64_logo:
+        st.markdown(
+            f"""
+            <div style='text-align: center; margin-top: 30px;'>
+                <img src="data:image/png;base64,{base64_logo}" alt="Logo NORMAQ" style='height: 50px; margin-bottom: 10px;'>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        # Fallback - exibe texto se a logo não carregar
+        st.markdown(
+            """
+            <div style='text-align: center; margin-top: 30px;'>
+                <span style='font-size: 24px; font-weight: bold; color: #1e3a8a;'>NORMAQ JCB</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # ——————————————————————————————
 #  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS (MELHORADAS)
@@ -281,6 +397,9 @@ def verificar_login():
         st.session_state.usuario_logado = None
     
     if not st.session_state.usuario_logado:
+        # Aplica o fundo com imagem na página de login
+        set_login_background()
+        
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
         
@@ -472,6 +591,9 @@ def verificar_login():
 #  ALTERAÇÃO DE SENHA OBRIGATÓRIA (MELHORADA)
 # ——————————————————————————————
 def alterar_senha_obrigatorio():
+    # Aplica fundo branco para a alteração de senha
+    set_main_background()
+    
     st.title("🔒 Alteração de Senha Obrigatória")
     st.warning("É necessário alterar sua senha antes de acessar o sistema.")
     
@@ -712,6 +834,9 @@ def inject_protection_css():
 def main():
     # Verificar login antes de mostrar qualquer conteúdo
     verificar_login()
+    
+    # Aplica fundo branco para a página principal
+    set_main_background()
     
     # Injetar CSS + JS de proteção
     inject_protection_css()
@@ -1068,12 +1193,12 @@ def main():
 
     # Rodapé com logo
     st.markdown("---")
+    display_logo_footer()
     st.markdown(
         f"""
-        <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
-        <img src="/fotos/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
+        <div style='text-align: center; font-size: 11px; color: #666; margin-top: 10px;'>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.6.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.6.1 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
         Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 <a href='https://wa.me/5581995143900' style='color: #666;'>(81) 99514-3900</a>
         </div>
