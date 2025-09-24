@@ -8,12 +8,11 @@ import re
 import hashlib
 import json
 from pathlib import Path
-import base64
-import requests
 
 # ——————————————————————————————
 #  VERIFICAÇÃO PING UPTIMEROBOT (MELHORADA)
 # ——————————————————————————————
+# Verifica se é uma requisição do UptimeRobot antes de qualquer coisa
 if 'QUERY_STRING' in os.environ and 'ping=1' in os.environ['QUERY_STRING']:
     print("ok")
     exit(0)
@@ -30,6 +29,7 @@ st.set_page_config(
 # ——————————————————————————————
 #  VERIFICAÇÃO ALTERNATIVA
 # ——————————————————————————————
+# Verificação adicional para garantir
 try:
     params = st.query_params
     if params.get("ping") == "1":
@@ -58,131 +58,66 @@ EMAILS_AUTORIZADOS = {
     "marcelo.teles@normaq.com.br": "marcelo.teles"
 }
 
+# Senha padrão inicial
 SENHA_PADRAO = "NMQ@123"
+# Senha de administrador para cadastros e ajustes
 SENHA_ADMIN = "NMQ@2025"
 
 # ——————————————————————————————
 #  OPÇÕES PARA OS DROPDOWNS
 # ——————————————————————————————
-OPCOES_REVENDA = ["Recife", "Natal", "Fortaleza", "Petrolina"]
-OPCOES_PSSR = ["Flávio", "Kecio", "Marcelo"]
-OPCOES_CONSULTOR = ["Camila", "David", "Elivaldo", "Josezito", "Nardie", "Roseane", "Tarcio", "Tarcisio", "Tiago", "Sergio", "Renato", "Francisco", "Aliny"]
+OPCOES_REVENDA = [
+    "Recife",
+    "Natal", 
+    "Fortaleza",
+    "Petrolina"
+]
+
+OPCOES_PSSR = [
+    "Flávio",
+    "Kecio",
+    "Marcelo"
+]
+
+OPCOES_CONSULTOR = [
+    "Camila",
+    "David",
+    "Elivaldo",
+    "Josezito",
+    "Nardie",
+    "Roseane",
+    "Tarcio",
+    "Tarcisio",
+    "Tiago",
+    "Sergio",
+    "Renato",
+    "Francisco",
+    "Aliny"
+]
 
 # ——————————————————————————————
-#  FUNÇÕES PARA IMAGENS
-# ——————————————————————————————
-def get_image_from_url(url):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return base64.b64encode(response.content).decode()
-    except:
-        return None
-
-def set_login_background():
-    background_url = "https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/029c6610026b80e88ca7733690fe1a12f44874b2/fotos/fundo.png"
-    base64_bg = get_image_from_url(background_url)
-    
-    if base64_bg:
-        st.markdown(
-            f"""
-            <style>
-            [data-testid="stAppViewContainer"] {{
-                background-image: url("data:image/png;base64,{base64_bg}");
-                background-size: cover;
-                background-position: center;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
-            }}
-            .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.95);
-                border-radius: 15px;
-                padding: 2rem;
-                margin-top: 2rem;
-                margin-bottom: 2rem;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-                border: 1px solid rgba(255, 255, 255, 0.3);
-            }}
-            section[data-testid="stSidebar"] {{
-                background-color: rgba(255, 255, 255, 0.95) !important;
-            }}
-            .stTabs [data-baseweb="tab-list"] {{
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 10px;
-                padding: 5px;
-            }}
-            .stTabContent {{
-                background-color: rgba(255, 255, 255, 0.9);
-                border-radius: 10px;
-                padding: 15px;
-                margin-top: 10px;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-
-def set_main_background():
-    st.markdown(
-        """
-        <style>
-        [data-testid="stAppViewContainer"] {
-            background-color: #ffffff;
-        }
-        .main .block-container {
-            background-color: #ffffff;
-            border-radius: 10px;
-            padding: 2rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-def display_logo_footer():
-    logo_url = "https://raw.githubusercontent.com/tcarmo2023/carteira-clientes-normaq/main/fotos/logo.png"
-    base64_logo = get_image_from_url(logo_url)
-    
-    if base64_logo:
-        st.markdown(
-            f"""
-            <div style='text-align: center; margin-top: 30px;'>
-                <img src="data:image/png;base64,{base64_logo}" alt="Logo NORMAQ" style='height: 50px;'>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    else:
-        st.markdown(
-            """
-            <div style='text-align: center; margin-top: 30px;'>
-                <span style='font-size: 24px; font-weight: bold; color: #1e3a8a;'>NORMAQ JCB</span>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-# ——————————————————————————————
-#  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS (CORRIGIDAS)
+#  FUNÇÕES DE ARMAZENAMENTO DE USUÁRIOS (MELHORADAS)
 # ——————————————————————————————
 def get_usuarios_file():
+    """Retorna o caminho do arquivo de usuários"""
     return Path("usuarios.json")
 
 def carregar_usuarios():
-    """Carrega usuários garantindo que senha_visualizavel sempre reflita a senha atual"""
+    """Carrega os usuários do arquivo JSON com garantia de não perda de senhas"""
     usuarios_file = get_usuarios_file()
     
     if not usuarios_file.exists():
+        # Se o arquivo não existe, cria com os usuários padrão
         usuarios = {}
         for email, login in EMAILS_AUTORIZADOS.items():
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
-                "senha_visualizavel": SENHA_PADRAO,
                 "primeiro_login": True,
+                "senha_visualizavel": SENHA_PADRAO,
                 "data_criacao": datetime.now().isoformat(),
                 "data_ultima_alteracao": datetime.now().isoformat(),
-                "historico_senhas": [SENHA_PADRAO]
+                "historico_senhas": [SENHA_PADRAO]  # NOVO: Histórico de senhas
             }
         salvar_usuarios(usuarios)
         return usuarios
@@ -191,62 +126,80 @@ def carregar_usuarios():
         with open(usuarios_file, 'r', encoding='utf-8') as f:
             usuarios_existentes = json.load(f)
             
-        usuarios_atualizados = False
+        # Verifica e corrige a estrutura de cada usuário existente
+        usuarios_corrigidos = False
         
         for login, dados_usuario in usuarios_existentes.items():
-            # CORREÇÃO CRÍTICA: Garantir que senha_visualizavel sempre reflita a senha atual
-            if "historico_senhas" in dados_usuario and dados_usuario["historico_senhas"]:
-                # A senha atual é sempre a última do histórico
-                senha_atual = dados_usuario["historico_senhas"][-1]
-                if dados_usuario.get("senha_visualizavel") != senha_atual:
-                    dados_usuario["senha_visualizavel"] = senha_atual
-                    usuarios_atualizados = True
+            # Garantir que todos os campos necessários existam
+            if "senha_visualizavel" not in dados_usuario:
+                # Se não tem senha visualizável, tentar determinar qual é a senha atual
+                if "historico_senhas" in dados_usuario and dados_usuario["historico_senhas"]:
+                    # Usa a última senha do histórico
+                    dados_usuario["senha_visualizavel"] = dados_usuario["historico_senhas"][-1]
+                else:
+                    # Se não tem histórico, usa a senha padrão
+                    dados_usuario["senha_visualizavel"] = SENHA_PADRAO
+                usuarios_corrigidos = True
             
-            # Garantir campos obrigatórios
+            # Garantir que existe histórico de senhas
+            if "historico_senhas" not in dados_usuario:
+                # Cria histórico baseado na senha atual
+                senha_atual = dados_usuario.get("senha_visualizavel", SENHA_PADRAO)
+                dados_usuario["historico_senhas"] = [senha_atual]
+                usuarios_corrigidos = True
+            
+            # Garantir campos de data
             if "data_criacao" not in dados_usuario:
                 dados_usuario["data_criacao"] = datetime.now().isoformat()
-                usuarios_atualizados = True
+                usuarios_corrigidos = True
             
             if "data_ultima_alteracao" not in dados_usuario:
                 dados_usuario["data_ultima_alteracao"] = datetime.now().isoformat()
-                usuarios_atualizados = True
+                usuarios_corrigidos = True
             
-            if "senha_visualizavel" not in dados_usuario:
-                dados_usuario["senha_visualizavel"] = SENHA_PADRAO
-                usuarios_atualizados = True
-            
-            if "historico_senhas" not in dados_usuario:
-                dados_usuario["historico_senhas"] = [SENHA_PADRAO]
-                usuarios_atualizados = True
+            # Verificar consistência entre senha_hash e senha_visualizavel
+            senha_visualizavel = dados_usuario.get("senha_visualizavel", SENHA_PADRAO)
+            if not verificar_senha(senha_visualizavel, dados_usuario["senha_hash"]):
+                # Se não bate, atualizar o hash para refletir a senha visualizável
+                dados_usuario["senha_hash"] = hash_senha(senha_visualizavel)
+                usuarios_corrigidos = True
         
-        # Adicionar novos usuários
+        # Verifica se há usuários novos nos EMAILS_AUTORIZADOS que não estão no arquivo
+        usuarios_para_adicionar = {}
         for email, login in EMAILS_AUTORIZADOS.items():
             if login not in usuarios_existentes:
-                usuarios_existentes[login] = {
+                usuarios_para_adicionar[login] = {
                     "email": email,
                     "senha_hash": hash_senha(SENHA_PADRAO),
-                    "senha_visualizavel": SENHA_PADRAO,
                     "primeiro_login": True,
+                    "senha_visualizavel": SENHA_PADRAO,
                     "data_criacao": datetime.now().isoformat(),
                     "data_ultima_alteracao": datetime.now().isoformat(),
                     "historico_senhas": [SENHA_PADRAO]
                 }
-                usuarios_atualizados = True
+                usuarios_corrigidos = True
         
-        if usuarios_atualizados:
+        # Se houver usuários novos, adiciona ao dicionário existente
+        if usuarios_para_adicionar:
+            usuarios_existentes.update(usuarios_para_adicionar)
+            usuarios_corrigidos = True
+        
+        # Se houve correções, salvar de volta
+        if usuarios_corrigidos:
             salvar_usuarios(usuarios_existentes)
             
         return usuarios_existentes
-        
+                
     except Exception as e:
         st.error(f"Erro ao carregar usuários: {e}")
+        # Em caso de erro crítico, retorna usuários padrão
         usuarios = {}
         for email, login in EMAILS_AUTORIZADOS.items():
             usuarios[login] = {
                 "email": email,
                 "senha_hash": hash_senha(SENHA_PADRAO),
-                "senha_visualizavel": SENHA_PADRAO,
                 "primeiro_login": True,
+                "senha_visualizavel": SENHA_PADRAO,
                 "data_criacao": datetime.now().isoformat(),
                 "data_ultima_alteracao": datetime.now().isoformat(),
                 "historico_senhas": [SENHA_PADRAO]
@@ -254,10 +207,13 @@ def carregar_usuarios():
         return usuarios
 
 def salvar_usuarios(usuarios):
+    """Salva os usuários no arquivo JSON com backup de segurança"""
     try:
+        # Criar backup do arquivo atual antes de salvar
         usuarios_file = get_usuarios_file()
         if usuarios_file.exists():
-            backup_file = usuarios_file.with_suffix('.json.backup')
+            # Cria backup com timestamp
+            backup_file = usuarios_file.with_suffix(f'.backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json')
             import shutil
             shutil.copy2(usuarios_file, backup_file)
         
@@ -268,61 +224,67 @@ def salvar_usuarios(usuarios):
         st.error(f"Erro ao salvar usuários: {e}")
         return False
 
-# ——————————————————————————————
-#  FUNÇÕES DE AUTENTICAÇÃO (CORRIGIDAS)
-# ——————————————————————————————
-def hash_senha(senha):
-    salt = "normaq_jcb_2025_salt"
-    return hashlib.sha256((senha + salt).encode()).hexdigest()
-
-def verificar_senha(senha, hash_armazenado):
-    return hash_senha(senha) == hash_armazenado
-
-def inicializar_usuarios():
-    return carregar_usuarios()
-
-def alterar_senha_usuario(login, nova_senha):
-    """CORREÇÃO CRÍTICA: Garante que senha_visualizavel SEMPRE seja atualizada"""
+def alterar_senha_segura(login, nova_senha):
+    """Altera a senha de forma segura, mantendo o histórico"""
     usuarios = carregar_usuarios()
     
     if login in usuarios:
-        # Atualizar senha hash
+        # Atualiza o hash da senha
         usuarios[login]["senha_hash"] = hash_senha(nova_senha)
         
-        # CORREÇÃO: SEMPRE atualizar senha_visualizavel com a nova senha
+        # Atualiza a senha visualizável
         usuarios[login]["senha_visualizavel"] = nova_senha
         
-        # Atualizar histórico
+        # Atualiza o histórico de senhas (NUNCA perde as senhas anteriores)
         if "historico_senhas" not in usuarios[login]:
             usuarios[login]["historico_senhas"] = []
         
-        # Adicionar ao histórico apenas se for diferente da última
-        if not usuarios[login]["historico_senhas"] or usuarios[login]["historico_senhas"][-1] != nova_senha:
-            usuarios[login]["historico_senhas"].append(nova_senha)
+        # Adiciona a nova senha ao histórico apenas se for diferente da última
+        historico = usuarios[login]["historico_senhas"]
+        if not historico or historico[-1] != nova_senha:
+            historico.append(nova_senha)
+            # Mantém um limite razoável no histórico (últimas 20 senhas)
+            if len(historico) > 20:
+                usuarios[login]["historico_senhas"] = historico[-20:]
         
-        # Manter apenas as últimas 10 senhas
-        if len(usuarios[login]["historico_senhas"]) > 10:
-            usuarios[login]["historico_senhas"] = usuarios[login]["historico_senhas"][-10:]
-        
-        usuarios[login]["primeiro_login"] = False
+        # Atualiza data da última alteração
         usuarios[login]["data_ultima_alteracao"] = datetime.now().isoformat()
-            
+        
+        # Marca que não é mais primeiro login
+        usuarios[login]["primeiro_login"] = False
+        
         return salvar_usuarios(usuarios)
     return False
 
 # ——————————————————————————————
-#  VERIFICAÇÃO DE LOGIN
+#  FUNÇÕES DE AUTENTICAÇÃO (MELHORADAS)
+# ——————————————————————————————
+def hash_senha(senha):
+    """Cria um hash da senha para armazenamento seguro"""
+    # Adiciona um salt para maior segurança
+    salt = "normaq_salt_2024_seguro"
+    return hashlib.sha256((senha + salt).encode()).hexdigest()
+
+def verificar_senha(senha, hash_armazenado):
+    """Verifica se a senha corresponde ao hash armazenado"""
+    return hash_senha(senha) == hash_armazenado
+
+def inicializar_usuarios():
+    """Inicializa os usuários com senha padrão se não existirem"""
+    return carregar_usuarios()
+
+# ——————————————————————————————
+#  VERIFICAÇÃO DE LOGIN (MANTIDA A MESMA INTERFACE)
 # ——————————————————————————————
 def verificar_login():
     if 'usuario_logado' not in st.session_state:
         st.session_state.usuario_logado = None
     
     if not st.session_state.usuario_logado:
-        set_login_background()
-        
         st.title("🔍 Carteira de Clientes NORMAQ JCB")
         st.markdown("---")
         
+        # Abas para Login e Cadastro - ORDEM AJUSTADA
         tab_login, tab_cadastro, tab_ajuste_senha, tab_excluir_usuario, tab_info = st.tabs([
             "Login", "Cadastrar Usuário", "Ajustes de Senha", "Excluir Usuário", "Informações"
         ])
@@ -349,6 +311,7 @@ def verificar_login():
                     else:
                         st.error("Login não encontrado.")
             
+            # Link para informações de recuperação
             st.markdown("---")
             st.info("""
             **Problemas de acesso?**
@@ -362,6 +325,8 @@ def verificar_login():
         
         with tab_cadastro:
             st.subheader("Cadastrar Novo Usuário")
+            
+            # Verificar senha de administrador
             senha_admin = st.text_input("Senha de administrador:", type="password", key="senha_admin_cadastro")
             
             if senha_admin == SENHA_ADMIN:
@@ -382,8 +347,8 @@ def verificar_login():
                             usuarios[login] = {
                                 "email": email,
                                 "senha_hash": hash_senha(senha_provisoria),
-                                "senha_visualizavel": senha_provisoria,
                                 "primeiro_login": True,
+                                "senha_visualizavel": senha_provisoria,
                                 "data_criacao": datetime.now().isoformat(),
                                 "data_ultima_alteracao": datetime.now().isoformat(),
                                 "historico_senhas": [senha_provisoria]
@@ -398,6 +363,8 @@ def verificar_login():
         
         with tab_ajuste_senha:
             st.subheader("Ajustes de Senha - Administrador")
+            
+            # Verificar senha de administrador
             senha_admin = st.text_input("Senha de administrador:", type="password", key="senha_admin_ajuste")
             
             if senha_admin == SENHA_ADMIN:
@@ -406,14 +373,13 @@ def verificar_login():
                 if usuarios:
                     usuario_selecionado = st.selectbox("Selecione o usuário:", list(usuarios.keys()))
                     
-                    # CORREÇÃO: Mostrar sempre a senha atual correta
+                    # Mostrar senha atual e histórico
                     if usuario_selecionado:
-                        # A senha atual é sempre a última do histórico
-                        historico = usuarios[usuario_selecionado].get("historico_senhas", [])
-                        senha_atual = historico[-1] if historico else "Não disponível"
+                        senha_atual = usuarios[usuario_selecionado].get("senha_visualizavel", "Não disponível")
+                        historico_count = len(usuarios[usuario_selecionado].get("historico_senhas", []))
                         
-                        st.info(f"**Senha atual do usuário:** `{senha_atual}`")
-                        st.info(f"**Histórico de senhas:** {len(historico)} senha(s) registrada(s)")
+                        st.info(f"Senha atual: {senha_atual}")
+                        st.info(f"Histórico de senhas: {historico_count} senha(s) registrada(s)")
                     
                     with st.form("form_ajuste_senha_admin"):
                         nova_senha = st.text_input("Nova senha:", type="password", value=SENHA_PADRAO)
@@ -425,12 +391,12 @@ def verificar_login():
                             if not nova_senha:
                                 st.error("A senha não pode estar vazia!")
                             else:
-                                if alterar_senha_usuario(usuario_selecionado, nova_senha):
+                                if alterar_senha_segura(usuario_selecionado, nova_senha):
                                     usuarios[usuario_selecionado]["primeiro_login"] = resetar_primeiro_login
                                     if salvar_usuarios(usuarios):
                                         st.success(f"Senha do usuário {usuario_selecionado} alterada com sucesso!")
                                         st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
-                                        st.info(f"**Nova senha:** `{nova_senha}`")
+                                        st.info(f"Nova senha: {nova_senha}")
                                     else:
                                         st.error("Erro ao salvar configurações do usuário.")
                                 else:
@@ -442,6 +408,8 @@ def verificar_login():
         
         with tab_excluir_usuario:
             st.subheader("Excluir Usuário - Administrador")
+            
+            # Verificar senha de administrador
             senha_admin = st.text_input("Senha de administrador:", type="password", key="senha_admin_excluir")
             
             if senha_admin == SENHA_ADMIN:
@@ -451,16 +419,16 @@ def verificar_login():
                     usuario_selecionado = st.selectbox("Selecione o usuário para excluir:", list(usuarios.keys()))
                     
                     if usuario_selecionado:
-                        # CORREÇÃO: Mostrar sempre a senha atual correta
-                        historico = usuarios[usuario_selecionado].get("historico_senhas", [])
-                        senha_atual = historico[-1] if historico else "Não disponível"
+                        senha_atual = usuarios[usuario_selecionado].get("senha_visualizavel", "Não disponível")
+                        historico_count = len(usuarios[usuario_selecionado].get("historico_senhas", []))
                         
                         st.warning(f"Tem certeza que deseja excluir o usuário {usuario_selecionado}?")
-                        st.info(f"**Email:** {usuarios[usuario_selecionado]['email']}")
-                        st.info(f"**Senha atual:** `{senha_atual}`")
-                        st.info(f"**Histórico de senhas:** {len(historico)} senha(s) registrada(s)")
+                        st.info(f"Email: {usuarios[usuario_selecionado]['email']}")
+                        st.info(f"Senha atual: {senha_atual}")
+                        st.info(f"Histórico de senhas: {historico_count} senha(s) registrada(s)")
                         
                         if st.button("Confirmar Exclusão", type="secondary"):
+                            # Verificar se não é o último usuário
                             if len(usuarios) <= 1:
                                 st.error("Não é possível excluir o último usuário!")
                             else:
@@ -488,23 +456,22 @@ def verificar_login():
             **Horário de atendimento:**  
             Segunda a sexta, 8h às 18h
             
-            **Sistema de senhas:**  
-            • As senhas são armazenadas de forma segura e permanente
-            • Histórico completo de todas as alterações
+            **Sistema de senhas seguro:**  
+            • Todas as senhas são armazenadas permanentemente
+            • Histórico completo de alterações mantido
             • Nenhuma senha é perdida ou excluída
             """)
         
         st.stop()
     
+    # Se é o primeiro login, força a alteração de senha
     if st.session_state.get('primeiro_login', False):
         alterar_senha_obrigatorio()
 
 # ——————————————————————————————
-#  ALTERAÇÃO DE SENHA OBRIGATÓRIA
+#  ALTERAÇÃO DE SENHA OBRIGATÓRIA (MELHORADA)
 # ——————————————————————————————
 def alterar_senha_obrigatorio():
-    set_main_background()
-    
     st.title("🔒 Alteração de Senha Obrigatória")
     st.warning("É necessário alterar sua senha antes de acessar o sistema.")
     
@@ -520,15 +487,15 @@ def alterar_senha_obrigatorio():
             elif nova_senha != confirmar_senha:
                 st.error("As senhas não coincidem!")
             else:
-                if alterar_senha_usuario(st.session_state.usuario_logado, nova_senha):
+                if alterar_senha_segura(st.session_state.usuario_logado, nova_senha):
                     st.session_state.primeiro_login = False
                     st.success("Senha alterada com sucesso!")
                     st.rerun()
                 else:
-                    st.error("Erro ao alterar senha.")
+                    st.error("Erro ao salvar nova senha.")
 
 # ——————————————————————————————
-#  FUNÇÃO DE CREDENCIAIS
+#  FUNÇÃO DE CREDENCIAIS (MANTIDA)
 # ——————————————————————————————
 def get_google_creds():
     scopes = [
@@ -539,7 +506,7 @@ def get_google_creds():
     return Credentials.from_service_account_info(creds_config, scopes=scopes)
 
 # ——————————————————————————————
-#  FUNÇÕES PARA PLANILHAS (mantidas as originais)
+#  FUNÇÃO PARA CARREGAR PLANILHAS (CORRIGIDA) - MANTIDA
 # ——————————————————————————————
 def load_sheet_data(client, spreadsheet_url, sheet_name):
     spreadsheet = client.open_by_url(spreadsheet_url)
@@ -548,25 +515,42 @@ def load_sheet_data(client, spreadsheet_url, sheet_name):
     if not records:
         return None
     df = pd.DataFrame(records)
+    
+    # Remover linhas completamente vazias (alternativa compatível)
     try:
+        # Tenta usar dropna com how='all' se disponível
         df = df.dropna(how='all')
     except:
+        # Se não funcionar, usa abordagem alternativa
         df = df[df.notnull().any(axis=1)]
+    
+    # Manter os nomes originais das colunas
     df.columns = [str(c).strip() for c in df.columns]
     return df
 
+# ——————————————————————————————
+#  FUNÇÃO PARA OBTER CABEÇALHOS EXATOS - MANTIDA
+# ——————————————————————————————
 def get_exact_headers(client, spreadsheet_url, sheet_name):
     spreadsheet = client.open_by_url(spreadsheet_url)
     worksheet = spreadsheet.worksheet(sheet_name)
     headers = worksheet.row_values(1)
     return [str(header).strip() for header in headers]
 
+# ——————————————————————————————
+#  FUNÇÃO PARA SALVAR DADOS NA PLANILHA - MANTIDA
+# ——————————————————————————————
 def save_to_sheet(client, spreadsheet_url, sheet_name, data):
     spreadsheet = client.open_by_url(spreadsheet_url)
     worksheet = spreadsheet.worksheet(sheet_name)
+    
+    # Obter cabeçalhos existentes
     headers = get_exact_headers(client, spreadsheet_url, sheet_name)
+    
+    # Preparar dados para inserção
     row_data = []
     for header in headers:
+        # Encontrar correspondência case-insensitive
         found = False
         for data_key in data.keys():
             if data_key.upper() == header.upper():
@@ -575,67 +559,96 @@ def save_to_sheet(client, spreadsheet_url, sheet_name, data):
                 break
         if not found:
             row_data.append("")
+    
+    # Adicionar nova linha
     worksheet.append_row(row_data)
     return True
 
+# ——————————————————————————————
+#  FUNÇÃO PARA ATUALIZAR DADOS NA PLANILHA - MANTIDA
+# ——————————————————————————————
 def update_sheet_data(client, spreadsheet_url, sheet_name, row_index, data):
     spreadsheet = client.open_by_url(spreadsheet_url)
     worksheet = spreadsheet.worksheet(sheet_name)
+    
+    # Obter cabeçalhos exatos
     headers = get_exact_headers(client, spreadsheet_url, sheet_name)
+    
+    # Preparar dados para atualização
     for data_key, value in data.items():
+        # Encontrar correspondência case-insensitive
         col_index = None
         for i, header in enumerate(headers):
             if data_key.upper() == header.upper():
                 col_index = i + 1
                 break
+        
         if col_index:
             worksheet.update_cell(row_index, col_index, value)
         else:
             st.warning(f"Coluna '{data_key}' não encontrada na planilha.")
+    
     return True
 
+# ——————————————————————————————
+#  FUNÇÃO FLEXÍVEL PARA PEGAR VALORES - MANTIDA
+# ——————————————————————————————
 def get_value(row, col_name, default="Não informado"):
     for col in row.index:
         if col.strip().upper() == col_name.upper():
             return row[col] if row[col] not in [None, ""] else default
     return default
 
+# ——————————————————————————————
+#  FUNÇÃO PARA FORMATAR NÚMERO DE TELEFONE - MANTIDA
+# ——————————————————————————————
 def formatar_telefone(telefone):
     if not telefone or telefone == "Não informado":
         return telefone
+    
+    # Remover caracteres não numéricos
     numeros = re.sub(r'\D', '', str(telefone))
+    
+    # Formatar número para WhatsApp (55DDDNUMERO)
     if numeros.startswith('55') and len(numeros) >= 12:
         return numeros
-    elif len(numeros) == 11:
+    elif len(numeros) == 11:  # Com DDD (11 dígitos)
         return '55' + numeros
-    elif len(numeros) == 10:
+    elif len(numeros) == 10:  # Com DDD (10 dígitos)
         return '55' + numeros
     else:
-        return numeros
+        return numeros  # Retorna como está se não conseguir formatar
 
 # ——————————————————————————————
-#  CSS + JS PARA PROTEÇÃO
+#  CSS + JS PARA BLOQUEAR SELEÇÃO DE TEXTO E AÇÕES DE COPIAR - MANTIDA
 # ——————————————————————————————
 def inject_protection_css():
     st.markdown("""
     <style>
+    /* Bloquear seleção de texto nas tabelas e elementos gerados pelo Streamlit */
     .stDataFrame, .streamlit-expanderHeader, .Markdown, .stTable, .stAceContent {
         user-select: none !important;
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
         -ms-user-select: none !important;
     }
+
+    /* Também bloqueia seleção em elementos de tabela HTML */
     table {
         user-select: none !important;
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
     }
+
+    /* Permitir seleção apenas em campos de input */
     input, textarea {
         user-select: text !important;
         -webkit-user-select: text !important;
         -moz-user-select: text !important;
         -ms-user-select: text !important;
     }
+    
+    /* Esconder qualquer botão de download que possa aparecer */
     .stDownloadButton, [data-testid="stDownloadButton"] {
         display: none !important;
         visibility: hidden !important;
@@ -643,19 +656,36 @@ def inject_protection_css():
         width: 0 !important;
         opacity: 0 !important;
     }
-    .main .block-container {
-        background-color: #ffffff;
-        border-radius: 10px;
-        padding: 2rem;
-        margin-top: 2rem;
-        margin-bottom: 2rem;
+    
+    /* Restaurar fontes e estilos */
+    .stApp {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff !important;
+    
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 600;
+    }
+    
+    .stButton>button {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 500;
+    }
+    
+    .stTextInput>div>div>input {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .stSelectbox>div>div>select {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     </style>
+
     <script>
+    // Bloquear clique direito
     document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // Bloquear Ctrl+C, Ctrl+S, PrintScreen e Ctrl+Shift+C (inspecionar)
     document.addEventListener('keydown', function(e) {
         if (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 's' || e.key === 'S' || e.key === 'C' && e.shiftKey)) {
             e.preventDefault();
@@ -663,10 +693,13 @@ def inject_protection_css():
         if (e.key === 'PrintScreen') {
             e.preventDefault();
         }
+        // bloquear Ctrl+Shift+I / Ctrl+Shift+C (DevTools)
         if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'C' || e.key === 'c')) {
             e.preventDefault();
         }
     });
+
+    // Tenta limpar seleção caso ocorra
     document.addEventListener('selectionchange', function () {
         try { window.getSelection().removeAllRanges(); } catch(e) {}
     });
@@ -674,15 +707,19 @@ def inject_protection_css():
     """, unsafe_allow_html=True)
 
 # ——————————————————————————————
-#  INTERFACE PRINCIPAL
+#  INTERFACE PRINCIPAL (MANTIDA A MESMA)
 # ——————————————————————————————
 def main():
+    # Verificar login antes de mostrar qualquer conteúdo
     verificar_login()
-    set_main_background()
+    
+    # Injetar CSS + JS de proteção
     inject_protection_css()
     
+    # Mostrar email do usuário logado
     st.sidebar.success(f"👤 Logado como: {st.session_state.usuario_logado}")
     
+    # Opção para alterar senha
     if st.sidebar.button("🔐 Alterar Senha"):
         st.session_state.alterar_senha = True
     
@@ -693,8 +730,10 @@ def main():
         st.session_state.alterar_senha = False
         st.rerun()
 
+    # Interface para alterar senha
     if st.session_state.get('alterar_senha', False):
         st.title("🔒 Alterar Senha")
+        
         with st.form("form_alterar_senha"):
             senha_atual = st.text_input("Senha atual:", type="password")
             nova_senha = st.text_input("Nova senha:", type="password")
@@ -716,22 +755,25 @@ def main():
                     if nova_senha != confirmar_senha:
                         st.error("As novas senhas não coincidem!")
                     else:
-                        if alterar_senha_usuario(st.session_state.usuario_logado, nova_senha):
+                        if alterar_senha_segura(st.session_state.usuario_logado, nova_senha):
                             st.session_state.alterar_senha = False
                             st.success("Senha alterada com sucesso!")
                             st.rerun()
                         else:
-                            st.error("Erro ao alterar senha.")
+                            st.error("Erro ao salvar nova senha.")
                 else:
                     st.error("Senha atual incorreta!")
 
     st.title("🔍 Carteira de Clientes NORMAQ JCB")
+
+    # Adicionar abas
     tab1, tab2, tab3 = st.tabs(["Consulta", "Cadastro de Cliente", "Ajuste de Cliente"])
     
     with tab1:
         try:
             creds = get_google_creds()
             client = gspread.authorize(creds)
+
             SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1sresryYLTR8aCp2ZCR82kfQKaUrqLxeFBVpVI2Yw7_I/edit?usp=sharing"
 
             @st.cache_data(ttl=3600)
@@ -745,13 +787,16 @@ def main():
                 st.warning("Nenhum dado disponível na Página1")
                 return
 
+            # Adicionar opção de consulta por CNPJ/CPF
             consulta_por = st.radio("Consultar por:", ["Cliente", "CNPJ/CPF"], horizontal=True)
             
             if consulta_por == "Cliente":
+                # Converter para string para evitar erro de comparação
                 clientes_disponiveis = sorted([str(cliente) for cliente in df_pagina1["CLIENTES"].dropna().unique()])
                 cliente_selecionado = st.selectbox("Selecione um cliente:", clientes_disponiveis, key="cliente_select")
                 cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_selecionado]
             else:
+                # Converter CNPJ/CPF para string para evitar erro de comparação
                 cnpj_cpf_disponiveis = sorted([str(cnpj) for cnpj in df_pagina1["CNPJ/CPF"].dropna().unique()])
                 cnpj_cpf_selecionado = st.selectbox("Selecione um CNPJ/CPF:", cnpj_cpf_disponiveis, key="cnpj_select")
                 cliente_data = df_pagina1[df_pagina1["CNPJ/CPF"].astype(str) == cnpj_cpf_selecionado]
@@ -759,10 +804,13 @@ def main():
 
             if not cliente_data.empty:
                 row = cliente_data.iloc[0]
+
+                # Obter e formatar número de contato para WhatsApp
                 contato_value = get_value(row, "Contato")
                 telefone_formatado = formatar_telefone(contato_value)
                 whatsapp_link = f"https://wa.me/{telefone_formatado}" if telefone_formatado and telefone_formatado != "Não informado" else "#"
 
+                # CARD DE INFORMAÇÕES
                 col1, col2 = st.columns([1, 2])
                 with col1:
                     st.markdown(
@@ -807,11 +855,15 @@ def main():
                 with col2:
                     if df_pagina2 is not None and not df_pagina2.empty:
                         maquinas_cliente = df_pagina2[df_pagina2["CLIENTES"].astype(str) == cliente_selecionado]
+
                         if not maquinas_cliente.empty:
                             qtd_maquinas = len(maquinas_cliente)
+                            
+                            # Calcular total por categoria
                             categorias_count = maquinas_cliente["CATEGORIA"].value_counts()
                             categorias_str = " | ".join([f"{cat} - {count:02d}" for cat, count in categorias_count.items()])
 
+                            # Mensagem com destaque
                             st.markdown(
                                 f"""
                                 <div style='
@@ -836,20 +888,40 @@ def main():
                                 unsafe_allow_html=True
                             )
 
+                            # Ajuste da coluna SERIE para remover pontos/virgulas
                             maquinas_cliente["SERIE"] = maquinas_cliente["SERIE"].astype(str).str.replace(r"[.,]", "", regex=True)
+
+                            # Adicionar número sequencial (começando em 1)
                             maquinas_cliente = maquinas_cliente.copy()
                             maquinas_cliente["N°"] = range(1, len(maquinas_cliente) + 1)
+                            
+                            # Adicionar coluna Nº CLIENTE da Página1 e remover vírgulas
                             n_cliente_value = get_value(row, "Nº Cliente", "")
+                            # Remover vírgulas e caracteres não numéricos, mantendo apenas números
                             n_cliente_limpo = re.sub(r'[^\d]', '', str(n_cliente_value))
                             maquinas_cliente["Nº CLIENTE"] = n_cliente_limpo
+                            
+                            # Reordenar colunas: N°, Nº CLIENTE, CLIENTES, depois as demais
                             cols_ordenadas = ["N°", "Nº CLIENTE", "CLIENTES"] + [col for col in maquinas_cliente.columns if col not in ["N°", "Nº CLIENTE", "CLIENTES"]]
                             maquinas_cliente = maquinas_cliente[cols_ordenadas]
+
+                            # Remover colunas vazias ou sem nome (incluindo a primeira coluna sem nome)
                             maquinas_cliente = maquinas_cliente.loc[:, ~maquinas_cliente.columns.str.contains('^Unnamed', na=False)]
                             maquinas_cliente = maquinas_cliente.loc[:, maquinas_cliente.columns != '']
-                            if maquinas_cliente.iloc[:, 0].name != 'N°':
+                            # Remover a primeira coluna se estiver vazia (índice antigo)
+                            if maquinas_cliente.iloc[:, 0].name == 'N°':
+                                # Já está correto, não fazer nada
+                                pass
+                            else:
+                                # Remover a primeira coluna se não for a coluna N°
                                 maquinas_cliente = maquinas_cliente.iloc[:, 1:]
+
+                            # Ajuste dos cabeçalhos (Primeira letra maiúscula)
                             maquinas_cliente.columns = [col.capitalize() for col in maquinas_cliente.columns]
+
+                            # Usar st.table() em vez de st.dataframe() para evitar o botão de download
                             st.table(maquinas_cliente.reset_index(drop=True))
+
                         else:
                             st.info("💡 Selecione um cliente para visualizar as informações completas")
                             st.warning("📭 Nenhuma máquina encontrada para este cliente")
@@ -863,14 +935,18 @@ def main():
 
     with tab2:
         st.header("Cadastro de Novo Cliente")
+        
+        # Verificar senha
         senha = st.text_input("Digite a senha para acesso:", type="password")
         
         if senha == SENHA_ADMIN:
             with st.form("form_cadastro"):
                 col1, col2 = st.columns(2)
+                
                 with col1:
                     cliente = st.text_input("CLIENTES*")
                     revenda = st.selectbox("Revenda*", OPCOES_REVENDA)
+                
                 with col2:
                     pssr = st.selectbox("PSSR*", OPCOES_PSSR)
                     consultor = st.selectbox("NOVO CONSULTOR*", OPCOES_CONSULTOR)
@@ -885,15 +961,24 @@ def main():
                         st.error("Todos os campos marcados com * são obrigatórios!")
                     else:
                         try:
+                            # Preparar dados com os nomes exatos das colunas
                             novo_cliente = {
-                                "CLIENTES": cliente, "NOVO CONSULTOR": consultor, "Revenda": revenda,
-                                "PSSR": pssr, "CNPJ/CPF": cnpj_cpf, "Contato": contato, "Nº Cliente": n_cliente
+                                "CLIENTES": cliente,
+                                "NOVO CONSULTOR": consultor,
+                                "Revenda": revenda,
+                                "PSSR": pssr,
+                                "CNPJ/CPF": cnpj_cpf,
+                                "Contato": contato,
+                                "Nº Cliente": n_cliente
                             }
+                            
+                            # Salvar na planilha
                             if save_to_sheet(client, SPREADSHEET_URL, "Página1", novo_cliente):
                                 st.success("Cliente cadastrado com sucesso!")
                                 st.cache_data.clear()
                             else:
                                 st.error("Erro ao cadastrar cliente.")
+                                
                         except Exception as e:
                             st.error(f"Erro ao cadastrar: {e}")
         elif senha != "":
@@ -901,15 +986,21 @@ def main():
     
     with tab3:
         st.header("Ajuste de Dados do Cliente")
+        
+        # Verificar senha
         senha = st.text_input("Digite a senha para acesso:", type="password", key="senha_ajuste")
         
         if senha == SENHA_ADMIN:
             try:
+                # Carregar dados
                 df_pagina1 = get_data("Página1")
+                
+                # Selecionar cliente para ajuste (convertendo para string)
                 opcoes_clientes = sorted([str(cliente) for cliente in df_pagina1["CLIENTES"].dropna().unique()])
                 cliente_ajuste = st.selectbox("Selecione o cliente para ajuste:", opcoes_clientes)
                 
                 if cliente_ajuste:
+                    # Obter dados do cliente selecionado
                     cliente_data = df_pagina1[df_pagina1["CLIENTES"].astype(str) == cliente_ajuste]
                     
                     if not cliente_data.empty:
@@ -917,15 +1008,18 @@ def main():
                         
                         with st.form("form_ajuste"):
                             st.subheader(f"Editando: {cliente_ajuste}")
+                            
                             col1, col2 = st.columns(2)
                             
                             with col1:
                                 novo_cliente = st.text_input("CLIENTES", value=get_value(cliente_data_row, "CLIENTES"))
+                                # Função para encontrar índice seguro
                                 def encontrar_indice_seguro(valor, lista):
                                     try:
                                         return lista.index(valor)
                                     except ValueError:
                                         return 0
+                                
                                 novo_consultor = st.selectbox("NOVO CONSULTOR", OPCOES_CONSULTOR, 
                                                              index=encontrar_indice_seguro(get_value(cliente_data_row, "NOVO CONSULTOR"), OPCOES_CONSULTOR))
                                 nova_revenda = st.selectbox("Revenda", OPCOES_REVENDA,
@@ -942,16 +1036,26 @@ def main():
                             
                             if submitted:
                                 try:
-                                    row_index = cliente_data.index[0] + 2
+                                    # Encontrar índice da linha
+                                    row_index = cliente_data.index[0] + 2  # +2 porque a planilha tem cabeçalho e índice começa em 1
+                                    # Preparar dados para atualização (usando os nomes exatos das colunas)
                                     dados_atualizados = {
-                                        "CLIENTES": novo_cliente, "NOVO CONSULTOR": novo_consultor, "Revenda": nova_revenda,
-                                        "PSSR": novo_pssr, "CNPJ/CPF": novo_cnpj, "Contato": novo_contato, "Nº Cliente": novo_n_cliente
+                                        "CLIENTES": novo_cliente,
+                                        "NOVO CONSULTOR": novo_consultor,
+                                        "Revenda": nova_revenda,
+                                        "PSSR": novo_pssr,
+                                        "CNPJ/CPF": novo_cnpj,
+                                        "Contato": novo_contato,
+                                        "Nº Cliente": novo_n_cliente
                                     }
+                                    
+                                    # Atualizar na planilha
                                     if update_sheet_data(client, SPREADSHEET_URL, "Página1", row_index, dados_atualizados):
                                         st.success("Dados atualizados com sucesso!")
                                         st.cache_data.clear()
                                     else:
                                         st.error("Erro ao atualizar dados.")
+                                        
                                 except Exception as e:
                                     st.error(f"Erro ao atualizar: {e}")
                     else:
@@ -962,19 +1066,21 @@ def main():
         elif senha != "":
             st.error("Senha incorreta!")
 
+    # Rodapé com logo
     st.markdown("---")
-    display_logo_footer()
     st.markdown(
         f"""
-        <div style='text-align: center; font-size: 11px; color: #666; margin-top: 10px;'>
+        <div style='text-align: center; font-size: 11px; color: #666; margin-top: 30px;'>
+        <img src="/fotos/logo.png" alt="Logo NORMAQ" style='height: 40px; margin-bottom: 10px;'><br>
         © {datetime.now().year} NORMAQ JCB - Todos os direitos reservados • 
-        Versão 1.5.5 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
+        Versão 1.6.0 • Atualizado em {datetime.now().strftime('%d/%m/%Y %H:%M')}
         <br>
         Desenvolvido por Thiago Carmo – Especialista em Dados • 📞 <a href='https://wa.me/5581995143900' style='color: #666;'>(81) 99514-3900</a>
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
 if __name__ == "__main__":
     main()
